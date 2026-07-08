@@ -1,0 +1,25 @@
+{
+  "name": "tp-3k01-gasparetti-godoy-torres-backend",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000T\u0000P\u0000-\u00003\u0000k\u00000\u00001\u0000-\u0000G\u0000a\u0000s\u0000p\u0000a\u0000r\u0000e\u0000t\u0000t\u0000i\u0000-\u0000G\u0000o\u0000d\u0000o\u0000y\u0000-\u0000T\u0000o\u0000r\u0000r\u0000e\u0000s\u0000-\u0000B\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luciagodoy/TP-3k01-Gasparetti-Godoy-Torres-Backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/luciagodoy/TP-3k01-Gasparetti-Godoy-Torres-Backend/issues"
+  },
+  "homepage": "https://github.com/luciagodoy/TP-3k01-Gasparetti-Godoy-Torres-Backend#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {}
+}
