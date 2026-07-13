@@ -1,19 +1,29 @@
-const { Op } = require('sequelize');
-const Reserva = require('../models/reserva');
-const Habitacion = require('../models/habitacion');
-const sequelize = require('../config/database');
+import { Request, Response } from 'express';
+import { Op, Transaction } from 'sequelize';
+import sequelize from '../config/database';
+import Reserva from '../models/Reserva';       
+import Habitacion from '../models/Habitacion'; 
 
-exports.crearReserva = async (req, res) => {
-  const t = await sequelize.transaction();
+interface CrearReservaBody {
+  fechaInicio: string;  
+  fechaFin: string;   
+  huespedId: number;
+  habitacionId: number;
+  montoTotal: number;
+}
+
+export const crearReserva = async (
+  req: Request<{}, {}, CrearReservaBody>, 
+  res: Response
+): Promise<void | Response> => {
+  const t: Transaction = await sequelize.transaction();
 
   try {
     const { fechaInicio, fechaFin, huespedId, habitacionId, montoTotal } = req.body;
-
-    // 1. VALIDACIÓN CRÍTICA:
     const reservaExistente = await Reserva.findOne({
       where: {
         habitacionId: habitacionId,
-        estado: { [Op.ne]: 'cancelada' }, // Ignorar las reservas canceladas
+        estado: { [Op.ne]: 'cancelada' }, 
         [Op.or]: [
           {
             // Caso 1: La nueva reserva empieza dentro de una reserva existente
@@ -31,17 +41,18 @@ exports.crearReserva = async (req, res) => {
             ]
           }
         ]
-      }
+      },
+      transaction: t 
     });
 
     if (reservaExistente) {
+      await t.rollback();
       return res.status(400).json({ 
         error: 'Habitación no disponible', 
         mensaje: 'La habitación ya se encuentra reservada para las fechas seleccionadas.' 
       });
     }
 
-    //  crear la reserva
     const nuevaReserva = await Reserva.create({
       fechaInicio,
       fechaFin,
@@ -51,7 +62,6 @@ exports.crearReserva = async (req, res) => {
       estado: 'pendiente'
     }, { transaction: t });
 
-    //  cambios en MySQL
     await t.commit();
 
     res.status(201).json({
@@ -59,9 +69,11 @@ exports.crearReserva = async (req, res) => {
       reserva: nuevaReserva
     });
 
-  } catch (error) {
-    //  cancelar la operación en la base de datos
+  } catch (error: any) {
     await t.rollback();
-    res.status(500).json({ error: 'Error al procesar la reserva', detalle: error.message });
+    res.status(500).json({ 
+      error: 'Error al procesar la reserva', 
+      detalle: error.message 
+    });
   }
 };

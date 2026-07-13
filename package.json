@@ -4,8 +4,9 @@
   "description": "��#\u0000 \u0000T\u0000P\u0000-\u00003\u0000k\u00000\u00001\u0000-\u0000G\u0000a\u0000s\u0000p\u0000a\u0000r\u0000e\u0000t\u0000t\u0000i\u0000-\u0000G\u0000o\u0000d\u0000o\u0000y\u0000-\u0000T\u0000o\u0000r\u0000r\u0000e\u0000s\u0000-\u0000B\u0000a\u0000c\u0000k\u0000e\u0000n\u0000d\u0000\r\u0000 \u0000",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js"
+  "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+  "build": "tsc",
+  "start": "node dist/index.js"
   },
   "repository": {
     "type": "git",
@@ -26,6 +27,10 @@
     "sequelize": "^6.37.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.1",
+    "nodemon": "^3.1.14",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^7.0.2"
   }
 }

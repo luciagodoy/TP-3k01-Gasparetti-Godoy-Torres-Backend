@@ -1,21 +1,35 @@
-const { Op } = require('sequelize');
-const Habitacion = require('../models/Habitacion');
-const CategoriaHabitacion = require('../models/CategoriaHabitacion');
-const Reserva = require('../models/Reserva');
+import { Request, Response } from 'express';
+import { Op, WhereOptions } from 'sequelize';
+import Habitacion from '../models/Habitacion';
+import CategoriaHabitacion from '../models/categoriaHabitacion';
+import Reserva from '../models/Reserva';
 
-exports.listarHabitacionesFiltradas = async (req, res) => {
+// Definir la estructura estricta de la URL (Query Params)
+interface BuscarHabitacionQuery {
+  fechaInicio?: string;
+  fechaFin?: string;
+  categoriaId?: string;
+  personas?: string;
+}
+
+export const listarHabitacionesFiltradas = async (
+  req: Request<{}, {}, {}, BuscarHabitacionQuery>, 
+  res: Response
+): Promise<void> => {
   try {
-    // Capturamos los filtros que vienen desde el Frontend por la URL (Query Params)
-    // Ejemplo: /api/habitaciones?fechaInicio=2026-10-01&fechaFin=2026-10-05&categoriaId=2&personas=3
     const { fechaInicio, fechaFin, categoriaId, personas } = req.query;
+    const filtroCategoria: WhereOptions = {};
+    
+    if (categoriaId) {
+      filtroCategoria.id = parseInt(categoriaId, 10);
+    }
+    
+    if (personas) {
+      filtroCategoria.capacidadPersonas = { [Op.gte]: parseInt(personas, 10) };
+    }
 
-    // 1. CONDICIONES PARA LA CATEGORÍA
-    let filtroCategoria = {};
-    if (categoriaId) filtroCategoria.id = categoriaId;
-    if (personas) filtroCategoria.capacidadPersonas = { [Op.gte]: personas }; // Capacidad mayor o igual
-
-    // 2. LÓGICA DE DISPONIBILIDAD ENTRE FECHAS
-    let habitacionesOcupadasIds = [];
+    // LÓGICA DE DISPONIBILIDAD ENTRE FECHAS
+    let habitacionesOcupadasIds: number[] = [];
 
     if (fechaInicio && fechaFin) {
       // Buscamos todas las reservas activas que se solapan con el rango de fechas pedido
@@ -33,16 +47,16 @@ exports.listarHabitacionesFiltradas = async (req, res) => {
             }
           ]
         },
-        attributes: ['habitacionId'] // Solo nos interesan los IDs de las habitaciones ocupadas
+        attributes: ['habitacionId']
       });
 
-      // Extraemos los IDs en un arreglo plano: [1, 4, 7...]
+      // Extraemos los IDs
       habitacionesOcupadasIds = reservasSolapadas.map(r => r.habitacionId);
     }
 
     // 3. CONDICIONES PARA LA HABITACIÓN
-    let filtroHabitacion = {
-      estadoDisponibilidad: 'disponible' // Que no esté en mantenimiento
+    const filtroHabitacion: WhereOptions = {
+      estadoDisponibilidad: 'disponible' 
     };
 
     // Si encontramos habitaciones ocupadas, las EXCLUIMOS de la búsqueda final
@@ -56,14 +70,14 @@ exports.listarHabitacionesFiltradas = async (req, res) => {
       include: [{
         model: CategoriaHabitacion,
         as: 'categoria',
-        where: filtroCategoria, // Aplica los filtros de capacidad o tipo
-        required: true // Hace que sea un INNER JOIN (obliga a que tenga categoría)
+        where: filtroCategoria, 
+        required: true          // Hace que sea un INNER JOIN obligado
       }]
     });
 
     res.json(habitacionesDisponibles);
 
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ 
       error: 'Error al filtrar las habitaciones', 
       detalle: error.message 
