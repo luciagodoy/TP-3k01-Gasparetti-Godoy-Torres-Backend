@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
-const Reserva = require('../models/Reserva');
-const Habitacion = require('../models/Habitacion');
+const Reserva = require('../models/reserva');
+const Habitacion = require('../models/habitacion');
 const sequelize = require('../config/database');
 
 exports.crearReserva = async (req, res) => {

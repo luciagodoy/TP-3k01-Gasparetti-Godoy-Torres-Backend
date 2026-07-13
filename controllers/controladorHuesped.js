@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const Huesped = require('../models/Huesped');
+const Huesped = require('../models/huesped');
 const sequelize = require('../config/database');
 
 exports.registrarHuesped = async (req, res) => {
