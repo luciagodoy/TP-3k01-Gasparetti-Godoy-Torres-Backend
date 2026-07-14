@@ -3,17 +3,13 @@ dotenv.config();
 
 import express, { Request, Response } from 'express';
 import sequelize from './config/database'; 
-
+import masterRouter from './routes';
 // === IMPORTACIÓN DE MODELOS ===
 import User from './models/User';
 import Huesped from './models/Huesped';
 import CategoriaHabitacion from './models/categoriaHabitacion';
 import Habitacion from './models/Habitacion';
 import Reserva from './models/Reserva';
-
-// === IMPORTACIÓN DE RUTAS ===
-import reservaRoutes from './routes/reservaRoutes';
-import habitacionRoutes from './routes/habitacionRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,8 +19,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // === ENRUTAMIENTO ===
-app.use('/api/reservas', reservaRoutes);
-app.use('/api/habitaciones', habitacionRoutes);
+app.use('/api', masterRouter);
 
 
 app.get('/', (req: Request, res: Response) => {
