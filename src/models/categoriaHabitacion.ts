@@ -1,7 +1,5 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import sequelize from '../config/database'; 
-
-
+import { sequelize } from '../config/database'; 
 interface CategoriaHabitacionAttributes {
   id: number;
   denominacion: string;
@@ -49,5 +47,4 @@ CategoriaHabitacion.init({
   tableName: 'CategoriasHabitacion',
   timestamps: true
 });
-
 export default CategoriaHabitacion;

@@ -1,18 +1,15 @@
-import dotenv from 'dotenv';
-dotenv.config(); // Nos aseguramos de leer las variables del archivo .env
-
 import { Sequelize } from 'sequelize';
+import dotenv from 'dotenv';
 
-// Inicializamos la instancia de Sequelize con tipado seguro
-const sequelize = new Sequelize(
-  process.env.DB_NAME as string, 
-  process.env.DB_USER as string, 
-  process.env.DB_PASSWORD as string, 
+dotenv.config();
+
+export const sequelize = new Sequelize(
+  process.env.DB_NAME || 'DSW-hoteleria',    
+  process.env.DB_USER || 'root',               
+  process.env.DB_PASSWORD || '',                
   {
-    host: process.env.DB_HOST,
-    dialect: 'mysql', 
-    logging: false, // Evita llenar la consola con comandos SQL crudos  
+    host: process.env.DB_HOST || 'localhost',  
+    dialect: 'mysql',                          
+    logging: false                             
   }
 );
-
-export default sequelize;

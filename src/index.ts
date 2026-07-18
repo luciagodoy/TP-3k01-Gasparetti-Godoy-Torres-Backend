@@ -2,9 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config(); 
 
 import express, { Request, Response } from 'express';
-import sequelize from './config/database'; 
+import { sequelize } from './config/database'; 
 import masterRouter from './routes';
-// === IMPORTACIÓN DE MODELOS ===
+import './models/index'; 
 import User from './models/User';
 import Huesped from './models/Huesped';
 import CategoriaHabitacion from './models/categoriaHabitacion';

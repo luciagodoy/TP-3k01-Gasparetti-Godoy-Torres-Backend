@@ -1,6 +1,5 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import sequelize from '../config/database';
-import CategoriaHabitacion from './categoriaHabitacion'; 
+import { sequelize } from '../config/database'; 
 
 // 1. Interfaz del modelo
 interface HabitacionAttributes {
@@ -23,7 +22,7 @@ class Habitacion
   public numero!: number;
   public piso!: number;
   public estadoDisponibilidad!: 'disponible' | 'ocupada' | 'mantenimiento';
-  public categoriaId!: number; // <-- Declaramos la propiedad en la clase
+  public categoriaId!: number; 
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -50,11 +49,11 @@ Habitacion.init({
     allowNull: false,
     defaultValue: 'disponible'
   },
-  categoriaId: { // <-- Agregamos formalmente la columna en la base de datos
+  categoriaId: { 
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'CategoriasHabitacion', // Nombre físico de la tabla padre
+      model: 'CategoriasHabitacion', 
       key: 'id'
     }
   }
@@ -62,17 +61,6 @@ Habitacion.init({
   sequelize,
   tableName: 'Habitaciones',
   timestamps: true
-});
-
-// === CONFIGURAR RELACIONES ===
-CategoriaHabitacion.hasMany(Habitacion, { 
-  foreignKey: 'categoriaId', 
-  as: 'habitaciones' 
-});
-
-Habitacion.belongsTo(CategoriaHabitacion, { 
-  foreignKey: 'categoriaId', 
-  as: 'categoria' 
 });
 
 export default Habitacion;
