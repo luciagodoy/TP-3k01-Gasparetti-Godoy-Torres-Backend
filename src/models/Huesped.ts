@@ -1,35 +1,37 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
-import User from './User'; 
+import User from './User';
+import Ciudad from './Ciudad';
 
 
 interface HuespedAttributes {
   id: number;
   telefono: string | null;
   documentoIdentidad: string;
-  ciudad: string;
-  provincia: string;
+  ciudadId: number;
   pais: string;
-  userId?: number; 
+  userId?: number;
 }
 
 interface HuespedCreationAttributes extends Optional<HuespedAttributes, 'id'> {}
 
-class Huesped 
-  extends Model<HuespedAttributes, HuespedCreationAttributes> 
-  implements HuespedAttributes 
+class Huesped
+  extends Model<HuespedAttributes, HuespedCreationAttributes>
+  implements HuespedAttributes
 {
   public id!: number;
   public telefono!: string | null;
   public documentoIdentidad!: string;
-  public ciudad!: string;
-  public provincia!: string;
+  public ciudadId!: number;
   public pais!: string;
   public userId!: number;
 
   // Timestamps automáticos de Sequelize
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+
+  public usuario?: User;
+  public ciudad?: Ciudad;
 }
 
 
@@ -48,13 +50,13 @@ Huesped.init({
     allowNull: false,
     unique: true
   },
-  ciudad: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  provincia: {
-    type: DataTypes.STRING,
-    allowNull: false
+  ciudadId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Ciudades',
+      key: 'id'
+    }
   },
   pais: {
     type: DataTypes.STRING,
@@ -69,15 +71,18 @@ Huesped.init({
 
 // === CONFIGURAR RELACIONES  ===
 
-User.hasOne(Huesped, { 
-  foreignKey: 'userId', 
-  as: 'perfilHuesped', 
-  onDelete: 'CASCADE' 
+User.hasOne(Huesped, {
+  foreignKey: 'userId',
+  as: 'perfilHuesped',
+  onDelete: 'CASCADE'
 });
 
-Huesped.belongsTo(User, { 
-  foreignKey: 'userId', 
-  as: 'usuario' 
+Huesped.belongsTo(User, {
+  foreignKey: 'userId',
+  as: 'usuario'
 });
+
+Ciudad.hasMany(Huesped, { foreignKey: 'ciudadId', as: 'huespedes' });
+Huesped.belongsTo(Ciudad, { foreignKey: 'ciudadId', as: 'ciudad' });
 
 export default Huesped;

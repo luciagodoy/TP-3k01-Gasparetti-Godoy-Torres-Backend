@@ -2,6 +2,7 @@ import { Model, DataTypes, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 import Huesped from './Huesped';
 import Habitacion from './habitacion';
+import type ReservaServicio from './ReservaServicio';
 
 //   define atributos de la Reserva
 interface ReservaAttributes {
@@ -33,6 +34,10 @@ class Reserva
   // Timestamps automáticos de Sequelize
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+
+  public huesped?: Huesped;
+  public habitacion?: Habitacion;
+  public serviciosConsumidos?: ReservaServicio[];
 }
 
 // Inicialización del modelo

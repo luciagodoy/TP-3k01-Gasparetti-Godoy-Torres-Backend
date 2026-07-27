@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Op, WhereOptions } from 'sequelize';
-import Habitacion from '../models/Habitacion';
+import Habitacion from '../models/habitacion';
 import CategoriaHabitacion from '../models/categoriaHabitacion';
 import Reserva from '../models/Reserva';
 
@@ -10,6 +10,13 @@ interface BuscarHabitacionQuery {
   fechaFin?: string;
   categoriaId?: string;
   personas?: string;
+}
+
+interface HabitacionBody {
+  numero: number;
+  piso: number;
+  estadoDisponibilidad?: 'disponible' | 'ocupada' | 'mantenimiento';
+  categoriaId: number;
 }
 
 export const listarHabitacionesFiltradas = async (
@@ -55,9 +62,12 @@ export const listarHabitacionesFiltradas = async (
     }
 
     // 3. CONDICIONES PARA LA HABITACIÓN
-    const filtroHabitacion: WhereOptions = {
-      estadoDisponibilidad: 'disponible' 
-    };
+    // Solo restringimos a "disponible" cuando se pide una búsqueda de disponibilidad por fechas;
+    // un listado general (ej. panel de administración) debe ver habitaciones en todos los estados.
+    const filtroHabitacion: WhereOptions = {};
+    if (fechaInicio && fechaFin) {
+      filtroHabitacion.estadoDisponibilidad = 'disponible';
+    }
 
     // Si encontramos habitaciones ocupadas, las EXCLUIMOS de la búsqueda final
     if (habitacionesOcupadasIds.length > 0) {
@@ -78,9 +88,88 @@ export const listarHabitacionesFiltradas = async (
     res.json(habitacionesDisponibles);
 
   } catch (error: any) {
-    res.status(500).json({ 
-      error: 'Error al filtrar las habitaciones', 
-      detalle: error.message 
+    res.status(500).json({
+      error: 'Error al filtrar las habitaciones',
+      detalle: error.message
+    });
+  }
+};
+
+export const crearHabitacion = async (
+  req: Request<{}, {}, HabitacionBody>,
+  res: Response
+): Promise<void> => {
+  try {
+    const { numero, piso, estadoDisponibilidad, categoriaId } = req.body;
+    const habitacion = await Habitacion.create({
+      numero,
+      piso,
+      estadoDisponibilidad: estadoDisponibilidad || 'disponible',
+      categoriaId
+    });
+    res.status(201).json(habitacion);
+  } catch (error: any) {
+    res.status(400).json({ error: 'Error al crear la habitación', detalle: error.message });
+  }
+};
+
+export const obtenerHabitacion = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const habitacion = await Habitacion.findByPk(req.params.id, {
+      include: [{ model: CategoriaHabitacion, as: 'categoria' }]
+    });
+    if (!habitacion) {
+      res.status(404).json({ error: 'Habitación no encontrada' });
+      return;
+    }
+    res.json(habitacion);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener la habitación', detalle: error.message });
+  }
+};
+
+export const actualizarHabitacion = async (
+  req: Request<{ id: string }, {}, Partial<HabitacionBody>>,
+  res: Response
+): Promise<void> => {
+  try {
+    const habitacion = await Habitacion.findByPk(req.params.id);
+    if (!habitacion) {
+      res.status(404).json({ error: 'Habitación no encontrada' });
+      return;
+    }
+    const { numero, piso, estadoDisponibilidad, categoriaId } = req.body;
+    await habitacion.update({
+      ...(numero !== undefined && { numero }),
+      ...(piso !== undefined && { piso }),
+      ...(estadoDisponibilidad !== undefined && { estadoDisponibilidad }),
+      ...(categoriaId !== undefined && { categoriaId })
+    });
+    res.json(habitacion);
+  } catch (error: any) {
+    res.status(400).json({ error: 'Error al actualizar la habitación', detalle: error.message });
+  }
+};
+
+export const eliminarHabitacion = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const habitacion = await Habitacion.findByPk(req.params.id);
+    if (!habitacion) {
+      res.status(404).json({ error: 'Habitación no encontrada' });
+      return;
+    }
+    await habitacion.destroy();
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(400).json({
+      error: 'Error al eliminar la habitación',
+      detalle: 'Es posible que existan reservas asociadas a esta habitación.'
     });
   }
 };

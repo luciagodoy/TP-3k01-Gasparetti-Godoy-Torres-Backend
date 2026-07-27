@@ -1,5 +1,6 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import { sequelize } from '../config/database'; 
+import bcrypt from 'bcryptjs';
+import { sequelize } from '../config/database';
 
 interface UserAttributes {
   id: number;
@@ -11,9 +12,9 @@ interface UserAttributes {
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
 
-class User 
-  extends Model<UserAttributes, UserCreationAttributes> 
-  implements UserAttributes 
+class User
+  extends Model<UserAttributes, UserCreationAttributes>
+  implements UserAttributes
 {
   public id!: number;
   public username!: string;
@@ -24,6 +25,10 @@ class User
   // Timestamps automáticos (activados abajo)
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+
+  public async comparePassword(candidate: string): Promise<boolean> {
+    return bcrypt.compare(candidate, this.password);
+  }
 }
 
 User.init({
@@ -41,7 +46,7 @@ User.init({
     type: DataTypes.STRING,
     allowNull: false,
     validate: {
-      isEmail: true   
+      isEmail: true
     }
   },
   password: {
@@ -55,8 +60,15 @@ User.init({
   }
 }, {
   sequelize,
-  tableName: 'Usuarios', 
-  timestamps: true 
+  tableName: 'Usuarios',
+  timestamps: true,
+  hooks: {
+    beforeSave: async (user: User) => {
+      if (user.changed('password')) {
+        user.password = await bcrypt.hash(user.password, 10);
+      }
+    }
+  }
 });
 
 export default User;

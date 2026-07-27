@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import { Transaction } from 'sequelize';
-import sequelize from '../config/database';
+import { sequelize } from '../config/database';
 import User from '../models/User';
-import Huesped from '../models/Huesped'; 
+import Huesped from '../models/Huesped';
+import Ciudad from '../models/Ciudad';
+import Provincia from '../models/Provincia';
 
 // estructura exacta a recibir en el Body de la petición
 interface RegistrarHuespedBody {
@@ -11,21 +13,33 @@ interface RegistrarHuespedBody {
   password: string;
   telefono: string | null;
   documentoIdentidad: string;
-  ciudad: string;
-  provincia: string;
+  ciudadId: number;
   pais?: string; // Opcional porque tiene un defaultValue: 'Argentina' en el modelo
 }
 
+// Datos propios del perfil de Huesped (no incluye credenciales de User)
+interface ActualizarHuespedBody {
+  telefono?: string | null;
+  documentoIdentidad?: string;
+  ciudadId?: number;
+  pais?: string;
+}
+
+const INCLUDE_PERFIL = [
+  { model: User, as: 'usuario', attributes: { exclude: ['password'] } },
+  { model: Ciudad, as: 'ciudad', include: [{ model: Provincia, as: 'provincia' }] }
+];
+
 // Tipamos el controlador inyectando la interfaz en el tercer parámetro genérico de Request
 export const registrarHuesped = async (
-  req: Request<{}, {}, RegistrarHuespedBody>, 
+  req: Request<{}, {}, RegistrarHuespedBody>,
   res: Response
 ): Promise<void> => {
   // Inicializamos la variable de la transacción indicando su tipo explícito
   const t: Transaction = await sequelize.transaction();
 
   try {
-    const { username, email, password, telefono, documentoIdentidad, ciudad, provincia, pais } = req.body;
+    const { username, email, password, telefono, documentoIdentidad, ciudadId, pais } = req.body;
     const nuevoUsuario = await User.create({
       username,
       email,
@@ -35,22 +49,90 @@ export const registrarHuesped = async (
     await Huesped.create({
       telefono,
       documentoIdentidad,
-      ciudad,      
-      provincia,  
-      pais: pais || 'Argentina',        
+      ciudadId,
+      pais: pais || 'Argentina',
       userId: nuevoUsuario.id
     }, { transaction: t });
 
     // impactamos la base de datos
     await t.commit();
-    
+
     res.status(201).json({ mensaje: 'Huésped creado con éxito' });
 
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ 
-      error: 'Error al registrar', 
-      detalle: error.message 
+    res.status(400).json({
+      error: 'Error al registrar',
+      detalle: error.message
+    });
+  }
+};
+
+export const listarHuespedes = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const huespedes = await Huesped.findAll({ include: INCLUDE_PERFIL });
+    res.json(huespedes);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al listar los huéspedes', detalle: error.message });
+  }
+};
+
+export const obtenerHuesped = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const huesped = await Huesped.findByPk(req.params.id, { include: INCLUDE_PERFIL });
+    if (!huesped) {
+      res.status(404).json({ error: 'Huésped no encontrado' });
+      return;
+    }
+    res.json(huesped);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener el huésped', detalle: error.message });
+  }
+};
+
+export const actualizarHuesped = async (
+  req: Request<{ id: string }, {}, ActualizarHuespedBody>,
+  res: Response
+): Promise<void> => {
+  try {
+    const huesped = await Huesped.findByPk(req.params.id);
+    if (!huesped) {
+      res.status(404).json({ error: 'Huésped no encontrado' });
+      return;
+    }
+    const { telefono, documentoIdentidad, ciudadId, pais } = req.body;
+    await huesped.update({
+      ...(telefono !== undefined && { telefono }),
+      ...(documentoIdentidad !== undefined && { documentoIdentidad }),
+      ...(ciudadId !== undefined && { ciudadId }),
+      ...(pais !== undefined && { pais })
+    });
+    res.json(huesped);
+  } catch (error: any) {
+    res.status(400).json({ error: 'Error al actualizar el huésped', detalle: error.message });
+  }
+};
+
+// Elimina la cuenta completa (User + Huesped, vía cascada configurada en el modelo)
+export const eliminarHuesped = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<void> => {
+  try {
+    const huesped = await Huesped.findByPk(req.params.id);
+    if (!huesped) {
+      res.status(404).json({ error: 'Huésped no encontrado' });
+      return;
+    }
+    await User.destroy({ where: { id: huesped.userId } });
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(400).json({
+      error: 'Error al eliminar el huésped',
+      detalle: 'Es posible que existan reservas asociadas a este huésped.'
     });
   }
 };
