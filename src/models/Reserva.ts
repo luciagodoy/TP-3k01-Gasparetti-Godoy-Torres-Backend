@@ -1,7 +1,7 @@
 import { Model, DataTypes, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 import Huesped from './Huesped';
-import Habitacion from './habitacion';
+import Habitacion from './Habitacion';
 import type ReservaServicio from './ReservaServicio';
 
 //   define atributos de la Reserva

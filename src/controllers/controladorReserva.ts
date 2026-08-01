@@ -3,7 +3,7 @@ import { Op, Transaction } from 'sequelize';
 import PDFDocument from 'pdfkit';
 import { sequelize } from '../config/database';
 import Reserva from '../models/Reserva';
-import Habitacion from '../models/habitacion';
+import Habitacion from '../models/Habitacion';
 import Huesped from '../models/Huesped';
 import User from '../models/User';
 import ReservaServicio from '../models/ReservaServicio';

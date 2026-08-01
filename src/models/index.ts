@@ -1,5 +1,5 @@
 import CategoriaHabitacion from './categoriaHabitacion';
-import Habitacion from './habitacion';
+import Habitacion from './Habitacion';
 
 CategoriaHabitacion.hasMany(Habitacion, {
   foreignKey: 'categoriaId',

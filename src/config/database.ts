@@ -6,6 +6,19 @@ dotenv.config();
 
 const useSsl = process.env.DB_SSL === 'true';
 
+const sslOptions: Record<string, unknown> = {
+  require: true,
+  rejectUnauthorized: false
+};
+
+if (useSsl && process.env.DB_CA_PATH) {
+  try {
+    sslOptions.ca = fs.readFileSync(process.env.DB_CA_PATH);
+  } catch (error) {
+    console.warn(`No se pudo cargar el certificado SSL en ${process.env.DB_CA_PATH}. Se usará SSL sin validación del CA.`);
+  }
+}
+
 export const sequelize = new Sequelize(
   process.env.DB_NAME || 'DSW-hoteleria',
   process.env.DB_USER || 'root',
@@ -17,11 +30,7 @@ export const sequelize = new Sequelize(
     logging: false,
     dialectOptions: useSsl
       ? {
-          ssl: {
-            require: true,
-            rejectUnauthorized: true,
-            ca: process.env.DB_CA_PATH ? fs.readFileSync(process.env.DB_CA_PATH) : undefined
-          }
+          ssl: sslOptions
         }
       : {}
   }

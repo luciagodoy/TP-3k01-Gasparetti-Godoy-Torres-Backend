@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Op, WhereOptions } from 'sequelize';
-import Habitacion from '../models/habitacion';
+import Habitacion from '../models/Habitacion';
 import CategoriaHabitacion from '../models/categoriaHabitacion';
 import Reserva from '../models/Reserva';
 

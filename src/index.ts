@@ -9,7 +9,7 @@ import './models/index';
 import User from './models/User';
 import Huesped from './models/Huesped';
 import CategoriaHabitacion from './models/categoriaHabitacion';
-import Habitacion from './models/habitacion';
+import Habitacion from './models/Habitacion';
 import Reserva from './models/Reserva';
 import Provincia from './models/Provincia';
 import Ciudad from './models/Ciudad';

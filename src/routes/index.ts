@@ -11,6 +11,7 @@ import cupoRouter from './cupoRoutes';
 import precioServicioRouter from './precioServicioRoutes';
 import reservaServicioRouter from './reservaServicioRoutes';
 import empleadoRouter from './empleadoRoutes';
+import userRouter from './userRoutes';
 
 const masterRouter = Router();
 
@@ -26,5 +27,6 @@ masterRouter.use('/cupos', cupoRouter);
 masterRouter.use('/precios-servicio', precioServicioRouter);
 masterRouter.use('/reserva-servicios', reservaServicioRouter);
 masterRouter.use('/empleados', empleadoRouter);
+masterRouter.use('/usuarios', userRouter);
 
 export default masterRouter;
