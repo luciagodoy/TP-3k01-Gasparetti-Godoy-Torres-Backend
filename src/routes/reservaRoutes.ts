@@ -7,10 +7,18 @@ import {
   eliminarReserva,
   realizarCheckIn,
   realizarCheckOut,
-  descargarComprobante
+  descargarComprobante,
+  crearReservaPropia,
+  listarMisReservas,
+  cancelarReservaPropia
 } from '../controllers/controladorReserva';
+import auth from '../middleware/auth';
 
 const router = Router();
+
+router.post('/mias', auth.simple, crearReservaPropia);
+router.get('/mias', auth.simple, listarMisReservas);
+router.post('/:id/cancelar', auth.simple, cancelarReservaPropia);
 
 router.post('/', crearReserva);
 router.get('/', listarReservas);

@@ -1,24 +1,28 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import { sequelize } from '../config/database'; 
+import { sequelize } from '../config/database';
 interface CategoriaHabitacionAttributes {
   id: number;
   denominacion: string;
-  descripcion: string | null; 
+  descripcion: string | null;
   capacidadPersonas: number;
+  imagenUrl: string | null;
+  precioNoche: number;
 }
 
 interface CategoriaHabitacionCreationAttributes extends Optional<CategoriaHabitacionAttributes, 'id'> {}
 
-class CategoriaHabitacion 
-  extends Model<CategoriaHabitacionAttributes, CategoriaHabitacionCreationAttributes> 
-  implements CategoriaHabitacionAttributes 
+class CategoriaHabitacion
+  extends Model<CategoriaHabitacionAttributes, CategoriaHabitacionCreationAttributes>
+  implements CategoriaHabitacionAttributes
 {
   public id!: number;
   public denominacion!: string;
   public descripcion!: string | null;
   public capacidadPersonas!: number;
+  public imagenUrl!: string | null;
+  public precioNoche!: number;
 
-  // Timestamps 
+  // Timestamps
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -41,6 +45,19 @@ CategoriaHabitacion.init({
   capacidadPersonas: {
     type: DataTypes.INTEGER,
     allowNull: false
+  },
+  imagenUrl: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  precioNoche: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0,
+    get() {
+      const value = this.getDataValue('precioNoche');
+      return value ? parseFloat(value as any) : 0;
+    }
   }
 }, {
   sequelize,

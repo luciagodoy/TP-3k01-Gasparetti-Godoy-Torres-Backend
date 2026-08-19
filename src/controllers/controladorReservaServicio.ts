@@ -4,12 +4,21 @@ import { sequelize } from '../config/database';
 import ReservaServicio from '../models/ReservaServicio';
 import Cupo from '../models/Cupo';
 import Servicio from '../models/Servicio';
+import Reserva from '../models/Reserva';
+import Huesped from '../models/Huesped';
+import { buscarPrecioVigente } from './controladorPrecioServicio';
 
 interface CrearReservaServicioBody {
   reservaId: number;
   cupoId: number;
   cantidad: number;
   precioUnitario: number;
+}
+
+interface CrearReservaServicioPropioBody {
+  reservaId: number;
+  cupoId: number;
+  cantidad: number;
 }
 
 interface ActualizarReservaServicioBody {
@@ -24,6 +33,39 @@ interface ListarReservaServicioQuery {
 
 const INCLUDE_CUPO = [{ model: Cupo, as: 'cupo', include: [{ model: Servicio, as: 'servicio' }] }];
 
+// Lógica transaccional compartida entre el alta administrativa (precio confiado del cliente)
+// y el alta de autoservicio del huésped (precio resuelto en el servidor). No se exporta:
+// solo la usan los dos handlers públicos de este archivo.
+const registrarConsumoServicio = async (
+  reservaId: number,
+  cupoId: number,
+  cantidad: number,
+  precioUnitario: number,
+  t: Transaction
+): Promise<{ status: number; body: any }> => {
+  // Bloqueamos la fila del cupo para evitar una condición de carrera entre
+  // dos consumos concurrentes del mismo cupo (una transacción sola no alcanza).
+  const cupo = await Cupo.findByPk(cupoId, { transaction: t, lock: t.LOCK.UPDATE });
+  if (!cupo) {
+    return { status: 404, body: { error: 'Cupo no encontrado' } };
+  }
+  if (cupo.disponibles < cantidad) {
+    return {
+      status: 400,
+      body: { error: 'Cupo insuficiente', mensaje: 'No hay suficiente disponibilidad para la cantidad solicitada.' }
+    };
+  }
+
+  const montoTotal = cantidad * precioUnitario;
+  const linea = await ReservaServicio.create({
+    reservaId, cupoId, cantidad, precioUnitario, montoTotal
+  }, { transaction: t });
+
+  await cupo.update({ disponibles: cupo.disponibles - cantidad }, { transaction: t });
+
+  return { status: 201, body: linea };
+};
+
 export const crearReservaServicio = async (
   req: Request<{}, {}, CrearReservaServicioBody>,
   res: Response
@@ -32,38 +74,65 @@ export const crearReservaServicio = async (
 
   try {
     const { reservaId, cupoId, cantidad, precioUnitario } = req.body;
+    const resultado = await registrarConsumoServicio(reservaId, cupoId, cantidad, precioUnitario, t);
+    if (resultado.status >= 400) {
+      await t.rollback();
+      return res.status(resultado.status).json(resultado.body);
+    }
+    await t.commit();
+    res.status(resultado.status).json(resultado.body);
+  } catch (error: any) {
+    await t.rollback();
+    res.status(400).json({ error: 'Error al registrar el consumo del servicio', detalle: error.message });
+  }
+};
 
-    // Bloqueamos la fila del cupo para evitar una condición de carrera entre
-    // dos consumos concurrentes del mismo cupo (una transacción sola no alcanza).
-    const cupo = await Cupo.findByPk(cupoId, { transaction: t, lock: t.LOCK.UPDATE });
+// Variante de autoservicio: el huésped solo elige cupo y cantidad; el precio SIEMPRE se
+// resuelve en el servidor (nunca se confía en un precioUnitario enviado por el cliente,
+// a diferencia del endpoint administrativo de arriba), y se valida que la reserva sea propia.
+export const crearReservaServicioPropio = async (
+  req: Request<{}, {}, CrearReservaServicioPropioBody>,
+  res: Response
+): Promise<void | Response> => {
+  const t: Transaction = await sequelize.transaction();
+
+  try {
+    const { reservaId, cupoId, cantidad } = req.body;
+
+    const huesped = await Huesped.findOne({ where: { userId: req.user!.id }, transaction: t });
+    if (!huesped) {
+      await t.rollback();
+      return res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+    }
+
+    const reserva = await Reserva.findByPk(reservaId, { transaction: t });
+    if (!reserva || reserva.huespedId !== huesped.id) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Reserva no encontrada' });
+    }
+
+    const cupo = await Cupo.findByPk(cupoId, { transaction: t });
     if (!cupo) {
       await t.rollback();
       return res.status(404).json({ error: 'Cupo no encontrado' });
     }
-    if (cupo.disponibles < cantidad) {
+
+    const precioVigente = await buscarPrecioVigente(cupo.servicioId);
+    if (!precioVigente) {
       await t.rollback();
-      return res.status(400).json({
-        error: 'Cupo insuficiente',
-        mensaje: 'No hay suficiente disponibilidad para la cantidad solicitada.'
-      });
+      return res.status(400).json({ error: 'El servicio no tiene un precio vigente configurado' });
     }
 
-    const montoTotal = cantidad * precioUnitario;
-    const linea = await ReservaServicio.create({
-      reservaId,
-      cupoId,
-      cantidad,
-      precioUnitario,
-      montoTotal
-    }, { transaction: t });
-
-    await cupo.update({ disponibles: cupo.disponibles - cantidad }, { transaction: t });
-
+    const resultado = await registrarConsumoServicio(reservaId, cupoId, cantidad, precioVigente.precio, t);
+    if (resultado.status >= 400) {
+      await t.rollback();
+      return res.status(resultado.status).json(resultado.body);
+    }
     await t.commit();
-    res.status(201).json(linea);
+    res.status(resultado.status).json(resultado.body);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al registrar el consumo del servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al agregar el servicio a tu reserva', detalle: error.message });
   }
 };
 

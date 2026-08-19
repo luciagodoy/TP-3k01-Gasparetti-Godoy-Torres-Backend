@@ -77,6 +77,25 @@ export const listarHuespedes = async (_req: Request, res: Response): Promise<voi
   }
 };
 
+export const obtenerMiPerfilHuesped = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const huesped = await Huesped.findOne({
+      where: { userId: req.user!.id },
+      include: INCLUDE_PERFIL
+    });
+    if (!huesped) {
+      res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+      return;
+    }
+    res.json(huesped);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al obtener el perfil del huésped', detalle: error.message });
+  }
+};
+
 export const obtenerHuesped = async (
   req: Request<{ id: string }>,
   res: Response

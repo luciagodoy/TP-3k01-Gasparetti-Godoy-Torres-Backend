@@ -4,6 +4,7 @@ import PDFDocument from 'pdfkit';
 import { sequelize } from '../config/database';
 import Reserva from '../models/Reserva';
 import Habitacion from '../models/Habitacion';
+import CategoriaHabitacion from '../models/categoriaHabitacion';
 import Huesped from '../models/Huesped';
 import User from '../models/User';
 import ReservaServicio from '../models/ReservaServicio';
@@ -45,6 +46,22 @@ const condicionSolapamiento = (fechaInicio: string, fechaFin: string) => [
     ]
   }
 ];
+
+// Resuelve el id de Huesped asociado a la cuenta autenticada (req.user.id es el id de User).
+const resolverMiHuespedId = async (userId: number, t?: Transaction): Promise<number | null> => {
+  const huesped = await Huesped.findOne({ where: { userId }, transaction: t });
+  return huesped ? huesped.id : null;
+};
+
+// Calcula la cantidad de noches entre dos fechas DATEONLY ('YYYY-MM-DD').
+// Se parsean como UTC explícito para evitar que la zona horaria local del servidor
+// reste/sume un día (gotcha clásico de `new Date('YYYY-MM-DD')` combinado con horario local).
+const calcularNoches = (fechaInicio: string, fechaFin: string): number => {
+  const inicio = new Date(`${fechaInicio}T00:00:00Z`);
+  const fin = new Date(`${fechaFin}T00:00:00Z`);
+  const msPorDia = 24 * 60 * 60 * 1000;
+  return Math.round((fin.getTime() - inicio.getTime()) / msPorDia);
+};
 
 // Reutilizado por crear/actualizar para comprobar solapamiento de fechas en una habitación.
 // excludeId se usa al actualizar, para no comparar la reserva contra sí misma.
@@ -217,6 +234,122 @@ export const eliminarReserva = async (
     res.status(204).send();
   } catch (error: any) {
     res.status(400).json({ error: 'Error al eliminar la reserva', detalle: error.message });
+  }
+};
+
+// === AUTOSERVICIO DEL HUÉSPED ===
+
+interface CrearReservaPropiaBody {
+  habitacionId: number;
+  fechaInicio: string;
+  fechaFin: string;
+}
+
+export const crearReservaPropia = async (
+  req: Request<{}, {}, CrearReservaPropiaBody>,
+  res: Response
+): Promise<void | Response> => {
+  const t: Transaction = await sequelize.transaction();
+
+  try {
+    const huespedId = await resolverMiHuespedId(req.user!.id, t);
+    if (!huespedId) {
+      await t.rollback();
+      return res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+    }
+
+    const { habitacionId, fechaInicio, fechaFin } = req.body;
+    const noches = calcularNoches(fechaInicio, fechaFin);
+    if (noches <= 0) {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'El rango de fechas es inválido',
+        mensaje: 'La fecha de fin debe ser posterior a la fecha de inicio.'
+      });
+    }
+
+    const habitacion = await Habitacion.findByPk(habitacionId, {
+      include: [{ model: CategoriaHabitacion, as: 'categoria' }],
+      transaction: t
+    });
+    if (!habitacion || !habitacion.categoria) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Habitación no encontrada' });
+    }
+
+    const reservaExistente = await buscarSolapamiento(habitacionId, fechaInicio, fechaFin, undefined, t);
+    if (reservaExistente) {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'Habitación no disponible',
+        mensaje: 'La habitación ya se encuentra reservada para las fechas seleccionadas.'
+      });
+    }
+
+    const montoTotal = noches * habitacion.categoria.precioNoche;
+    const nuevaReserva = await Reserva.create({
+      fechaInicio, fechaFin, huespedId, habitacionId, montoTotal, estado: 'pendiente'
+    }, { transaction: t });
+
+    await t.commit();
+    res.status(201).json({ mensaje: '¡Reserva realizada con éxito!', reserva: nuevaReserva });
+  } catch (error: any) {
+    await t.rollback();
+    res.status(500).json({ error: 'Error al procesar la reserva', detalle: error.message });
+  }
+};
+
+export const listarMisReservas = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const huespedId = await resolverMiHuespedId(req.user!.id);
+    if (!huespedId) {
+      res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+      return;
+    }
+    const reservas = await Reserva.findAll({
+      where: { huespedId },
+      include: [
+        { model: Habitacion, as: 'habitacion', include: [{ model: CategoriaHabitacion, as: 'categoria' }] },
+        { model: ReservaServicio, as: 'serviciosConsumidos', include: [{ model: Cupo, as: 'cupo', include: [{ model: Servicio, as: 'servicio' }] }] }
+      ],
+      order: [['fechaInicio', 'DESC']]
+    });
+    res.json(reservas);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error al listar tus reservas', detalle: error.message });
+  }
+};
+
+export const cancelarReservaPropia = async (
+  req: Request<{ id: string }>,
+  res: Response
+): Promise<void | Response> => {
+  const t: Transaction = await sequelize.transaction();
+
+  try {
+    const huespedId = await resolverMiHuespedId(req.user!.id, t);
+    if (!huespedId) {
+      await t.rollback();
+      return res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+    }
+    const reserva = await Reserva.findByPk(req.params.id, { transaction: t });
+    if (!reserva || reserva.huespedId !== huespedId) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Reserva no encontrada' });
+    }
+    if (reserva.estado !== 'pendiente') {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'Transición inválida',
+        mensaje: `No se puede cancelar una reserva en estado "${reserva.estado}".`
+      });
+    }
+    await reserva.update({ estado: 'cancelada' }, { transaction: t });
+    await t.commit();
+    res.json({ mensaje: 'Reserva cancelada correctamente', reserva });
+  } catch (error: any) {
+    await t.rollback();
+    res.status(400).json({ error: 'Error al cancelar la reserva', detalle: error.message });
   }
 };
 

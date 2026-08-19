@@ -1,5 +1,6 @@
 import { Model, DataTypes, Optional } from 'sequelize';
-import { sequelize } from '../config/database'; 
+import { sequelize } from '../config/database';
+import type CategoriaHabitacion from './categoriaHabitacion';
 
 // 1. Interfaz del modelo
 interface HabitacionAttributes {
@@ -26,6 +27,8 @@ class Habitacion
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+
+  public categoria?: CategoriaHabitacion;
 }
 
 // 4. Inicialización
