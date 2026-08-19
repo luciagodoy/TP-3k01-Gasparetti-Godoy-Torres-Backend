@@ -20,13 +20,13 @@ router.post('/mias', auth.simple, crearReservaPropia);
 router.get('/mias', auth.simple, listarMisReservas);
 router.post('/:id/cancelar', auth.simple, cancelarReservaPropia);
 
-router.post('/', crearReserva);
-router.get('/', listarReservas);
-router.get('/:id', obtenerReserva);
-router.put('/:id', actualizarReserva);
-router.delete('/:id', eliminarReserva);
-router.post('/:id/checkin', realizarCheckIn);
-router.post('/:id/checkout', realizarCheckOut);
-router.get('/:id/comprobante', descargarComprobante);
+router.post('/', auth.enhance, crearReserva);
+router.get('/', auth.enhance, listarReservas);
+router.get('/:id', auth.enhance, obtenerReserva);
+router.put('/:id', auth.enhance, actualizarReserva);
+router.delete('/:id', auth.enhance, eliminarReserva);
+router.post('/:id/checkin', auth.enhance, realizarCheckIn);
+router.post('/:id/checkout', auth.enhance, realizarCheckOut);
+router.get('/:id/comprobante', auth.enhance, descargarComprobante);
 
 export default router;

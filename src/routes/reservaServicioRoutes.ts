@@ -13,10 +13,10 @@ const router = Router();
 
 router.post('/mias', auth.simple, crearReservaServicioPropio);
 
-router.post('/', crearReservaServicio);
-router.get('/', listarReservaServicio);
-router.get('/:id', obtenerReservaServicio);
-router.put('/:id', actualizarReservaServicio);
-router.delete('/:id', eliminarReservaServicio);
+router.post('/', auth.enhance, crearReservaServicio);
+router.get('/', auth.enhance, listarReservaServicio);
+router.get('/:id', auth.enhance, obtenerReservaServicio);
+router.put('/:id', auth.enhance, actualizarReservaServicio);
+router.delete('/:id', auth.enhance, eliminarReservaServicio);
 
 export default router;

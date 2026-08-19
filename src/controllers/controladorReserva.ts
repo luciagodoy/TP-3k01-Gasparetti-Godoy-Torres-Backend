@@ -53,18 +53,14 @@ const resolverMiHuespedId = async (userId: number, t?: Transaction): Promise<num
   return huesped ? huesped.id : null;
 };
 
-// Calcula la cantidad de noches entre dos fechas DATEONLY ('YYYY-MM-DD').
-// Se parsean como UTC explícito para evitar que la zona horaria local del servidor
-// reste/sume un día (gotcha clásico de `new Date('YYYY-MM-DD')` combinado con horario local).
-const calcularNoches = (fechaInicio: string, fechaFin: string): number => {
+export const calcularNoches = (fechaInicio: string, fechaFin: string): number => {
   const inicio = new Date(`${fechaInicio}T00:00:00Z`);
   const fin = new Date(`${fechaFin}T00:00:00Z`);
   const msPorDia = 24 * 60 * 60 * 1000;
   return Math.round((fin.getTime() - inicio.getTime()) / msPorDia);
 };
 
-// Reutilizado por crear/actualizar para comprobar solapamiento de fechas en una habitación.
-// excludeId se usa al actualizar, para no comparar la reserva contra sí misma.
+
 const buscarSolapamiento = (
   habitacionId: number,
   fechaInicio: string,
@@ -462,8 +458,7 @@ export const descargarComprobante = async (
 };
 
 // Genera y transmite el PDF del comprobante de pago directamente en la respuesta HTTP.
-// Nota: una vez que empiezan a escribirse encabezados/cuerpo no hay forma de responder con JSON
-// de error si algo falla a mitad de camino; aceptable para el alcance de este proyecto.
+
 function generarComprobantePDF(reserva: Reserva, res: Response): void {
   const habitacion = reserva.habitacion;
   const huesped = reserva.huesped;

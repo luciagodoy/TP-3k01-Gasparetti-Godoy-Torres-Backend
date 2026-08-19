@@ -12,10 +12,11 @@ import auth from '../middleware/auth';
 const router = Router();
 
 router.post('/registro', registrarHuesped);
-router.get('/', listarHuespedes);
 router.get('/me', auth.simple, obtenerMiPerfilHuesped);
-router.get('/:id', obtenerHuesped);
-router.put('/:id', actualizarHuesped);
-router.delete('/:id', eliminarHuesped);
+
+router.get('/', auth.enhance, listarHuespedes);
+router.get('/:id', auth.enhance, obtenerHuesped);
+router.put('/:id', auth.enhance, actualizarHuesped);
+router.delete('/:id', auth.enhance, eliminarHuesped);
 
 export default router;

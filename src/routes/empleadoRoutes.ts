@@ -6,8 +6,11 @@ import {
   actualizarEmpleado,
   eliminarEmpleado
 } from '../controllers/controladorEmpleado';
+import auth from '../middleware/auth';
 
 const router = Router();
+
+router.use(auth.enhance);
 
 router.post('/', crearEmpleado);
 router.get('/', listarEmpleados);

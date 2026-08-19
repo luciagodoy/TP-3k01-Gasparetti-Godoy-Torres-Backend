@@ -6,13 +6,14 @@ import {
   actualizarProvincia,
   eliminarProvincia
 } from '../controllers/controladorProvincia';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearProvincia);
 router.get('/', listarProvincias);
 router.get('/:id', obtenerProvincia);
-router.put('/:id', actualizarProvincia);
-router.delete('/:id', eliminarProvincia);
+router.post('/', auth.enhance, crearProvincia);
+router.put('/:id', auth.enhance, actualizarProvincia);
+router.delete('/:id', auth.enhance, eliminarProvincia);
 
 export default router;

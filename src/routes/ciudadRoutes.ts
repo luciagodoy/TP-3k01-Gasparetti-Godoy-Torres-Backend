@@ -6,13 +6,14 @@ import {
   actualizarCiudad,
   eliminarCiudad
 } from '../controllers/controladorCiudad';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearCiudad);
 router.get('/', listarCiudades);
 router.get('/:id', obtenerCiudad);
-router.put('/:id', actualizarCiudad);
-router.delete('/:id', eliminarCiudad);
+router.post('/', auth.enhance, crearCiudad);
+router.put('/:id', auth.enhance, actualizarCiudad);
+router.delete('/:id', auth.enhance, eliminarCiudad);
 
 export default router;

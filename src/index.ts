@@ -1,11 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config(); 
 
-import express, { Request, Response } from 'express';
-import cors from 'cors';
 import { sequelize } from './config/database';
-import masterRouter from './routes';
-import './models/index'; 
+import app from './app';
+import './models/index';
 import User from './models/User';
 import Huesped from './models/Huesped';
 import CategoriaHabitacion from './models/categoriaHabitacion';
@@ -18,22 +16,9 @@ import Cupo from './models/Cupo';
 import PrecioServicio from './models/PrecioServicio';
 import ReservaServicio from './models/ReservaServicio';
 import Empleado from './models/Empleado';
+import { seedAdmin } from './config/seedAdmin';
 
-const app = express();
 const PORT = process.env.PORT || 3000;
-
-// === MIDDLEWARES ===
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// === ENRUTAMIENTO ===
-app.use('/api', masterRouter);
-
-
-app.get('/', (req: Request, res: Response) => {
-  res.send('¡Servidor Express + TypeScript + Sequelize funcionando!');
-});
 
 // === ARRANQUE DEL SERVIODR ===
 async function iniciarServidor(): Promise<void> {
@@ -43,6 +28,9 @@ async function iniciarServidor(): Promise<void> {
     
     await sequelize.sync({ alter: true });
     console.log(' Tablas sincronizadas correctamente.');
+
+    await seedAdmin();
+
     app.listen(PORT, () => {
       console.log(`Servidor TypeScript corriendo en http://localhost:${PORT}`);
     });

@@ -1,0 +1,11 @@
+import '../models/index';
+import '../models/User';
+import '../models/Huesped';
+import '../models/Reserva';
+import '../models/Provincia';
+import '../models/Ciudad';
+import '../models/Servicio';
+import '../models/Cupo';
+import '../models/PrecioServicio';
+import '../models/ReservaServicio';
+import '../models/Empleado';

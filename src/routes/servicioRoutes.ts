@@ -6,13 +6,14 @@ import {
   actualizarServicio,
   eliminarServicio
 } from '../controllers/controladorServicio';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearServicio);
 router.get('/', listarServicios);
 router.get('/:id', obtenerServicio);
-router.put('/:id', actualizarServicio);
-router.delete('/:id', eliminarServicio);
+router.post('/', auth.enhance, crearServicio);
+router.put('/:id', auth.enhance, actualizarServicio);
+router.delete('/:id', auth.enhance, eliminarServicio);
 
 export default router;

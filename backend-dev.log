@@ -1,0 +1,38 @@
+
+> tp-3k01-gasparetti-godoy-torres-backend@1.0.0 dev
+> tsx watch src/index.ts
+
+◇ injected env (10) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+ Conexión a MySQL establecida con éxito (TS).
+ Tablas sincronizadas correctamente.
+Usuario admin inicial creado (username: "admin"). Si no configuraste ADMIN_PASSWORD en .env, cambiá la contraseña por defecto.
+Servidor TypeScript corriendo en http://localhost:3000
+06:27:29 [tsx] change in ./src\controllers\controladorReserva.ts Restarting...
+◇ injected env (10) from .env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+ Conexión a MySQL establecida con éxito (TS).
+ Tablas sincronizadas correctamente.
+Servidor TypeScript corriendo en http://localhost:3000
+06:28:27 [tsx] change in ./src\controllers\controladorReserva.ts Restarting...
+◇ injected env (10) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+ Conexión a MySQL establecida con éxito (TS).
+ Tablas sincronizadas correctamente.
+Servidor TypeScript corriendo en http://localhost:3000
+06:30:42 [tsx] change in ./src\app.ts Restarting...
+◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+ Conexión a MySQL establecida con éxito (TS).
+06:30:53 [tsx] change in ./src\config\database.ts Restarting...
+◇ injected env (10) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+ Conexión a MySQL establecida con éxito (TS).
+06:30:57 [tsx] change in ./src\index.ts Restarting...
+◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+ Conexión a MySQL establecida con éxito (TS).
+06:31:09 [tsx] change in ./src\config\seedAdmin.ts Restarting...
+◇ injected env (10) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+ Conexión a MySQL establecida con éxito (TS).

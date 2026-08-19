@@ -6,13 +6,14 @@ import {
   actualizarCupo,
   eliminarCupo
 } from '../controllers/controladorCupo';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearCupo);
 router.get('/', listarCupos);
 router.get('/:id', obtenerCupo);
-router.put('/:id', actualizarCupo);
-router.delete('/:id', eliminarCupo);
+router.post('/', auth.enhance, crearCupo);
+router.put('/:id', auth.enhance, actualizarCupo);
+router.delete('/:id', auth.enhance, eliminarCupo);
 
 export default router;
