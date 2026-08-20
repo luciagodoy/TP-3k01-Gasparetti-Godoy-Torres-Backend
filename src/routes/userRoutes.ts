@@ -6,13 +6,14 @@ import {
   actualizarUsuario,
   eliminarUsuario
 } from '../controllers/controladorUser';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearUsuario);
-router.get('/', listarUsuarios);
-router.get('/:id', obtenerUsuario);
-router.put('/:id', actualizarUsuario);
-router.delete('/:id', eliminarUsuario);
+router.post('/', auth.admin, crearUsuario);
+router.get('/', auth.admin, listarUsuarios);
+router.get('/:id', auth.admin, obtenerUsuario);
+router.put('/:id', auth.admin, actualizarUsuario);
+router.delete('/:id', auth.admin, eliminarUsuario);
 
 export default router;

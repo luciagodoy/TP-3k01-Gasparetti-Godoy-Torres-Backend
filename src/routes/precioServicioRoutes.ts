@@ -6,13 +6,14 @@ import {
   actualizarPrecioServicio,
   eliminarPrecioServicio
 } from '../controllers/controladorPrecioServicio';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearPrecioServicio);
 router.get('/', listarPreciosServicio);
 router.get('/:id', obtenerPrecioServicio);
-router.put('/:id', actualizarPrecioServicio);
-router.delete('/:id', eliminarPrecioServicio);
+router.post('/', auth.staff, crearPrecioServicio);
+router.put('/:id', auth.staff, actualizarPrecioServicio);
+router.delete('/:id', auth.staff, eliminarPrecioServicio);
 
 export default router;

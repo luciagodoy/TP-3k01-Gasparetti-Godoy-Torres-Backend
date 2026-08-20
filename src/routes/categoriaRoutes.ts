@@ -6,13 +6,14 @@ import {
   actualizarCategoria,
   eliminarCategoria
 } from '../controllers/controladorCategoriaHabitacion';
+import auth from '../middleware/auth';
 
 const router = Router();
 
-router.post('/', crearCategoria);
 router.get('/', listarCategorias);
 router.get('/:id', obtenerCategoria);
-router.put('/:id', actualizarCategoria);
-router.delete('/:id', eliminarCategoria);
+router.post('/', auth.staff, crearCategoria);
+router.put('/:id', auth.staff, actualizarCategoria);
+router.delete('/:id', auth.staff, eliminarCategoria);
 
 export default router;

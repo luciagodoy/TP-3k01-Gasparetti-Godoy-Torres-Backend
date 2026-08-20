@@ -13,12 +13,12 @@ class Servicio
   extends Model<ServicioAttributes, ServicioCreationAttributes>
   implements ServicioAttributes
 {
-  public id!: number;
-  public nombre!: string;
-  public descripcion!: string | null;
+  declare id: number;
+  declare nombre: string;
+  declare descripcion: string | null;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Servicio.init({

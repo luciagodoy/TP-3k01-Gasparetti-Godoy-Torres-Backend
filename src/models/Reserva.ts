@@ -23,17 +23,17 @@ class Reserva
   extends Model<ReservaAttributes, ReservaCreationAttributes> 
   implements ReservaAttributes 
 {
-  public id!: number;
-  public fechaInicio!: string;
-  public fechaFin!: string;
-  public estado!: 'pendiente' | 'check-in' | 'check-out' | 'cancelada';
-  public montoTotal!: number;
-  public huespedId!: number;
-  public habitacionId!: number;
+  declare id: number;
+  declare fechaInicio: string;
+  declare fechaFin: string;
+  declare estado: 'pendiente' | 'check-in' | 'check-out' | 'cancelada';
+  declare montoTotal: number;
+  declare huespedId: number;
+  declare habitacionId: number;
 
   // Timestamps automáticos de Sequelize
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
   public huesped?: Huesped;
   public habitacion?: Habitacion;

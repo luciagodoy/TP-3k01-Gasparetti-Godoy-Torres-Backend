@@ -6,13 +6,14 @@ import {
   actualizarHabitacion,
   eliminarHabitacion
 } from '../controllers/controladorHabitacion';
+import auth from '../middleware/auth';
 
 const router = Router();
 
 router.get('/', listarHabitacionesFiltradas);
-router.post('/', crearHabitacion);
 router.get('/:id', obtenerHabitacion);
-router.put('/:id', actualizarHabitacion);
-router.delete('/:id', eliminarHabitacion);
+router.post('/', auth.staff, crearHabitacion);
+router.put('/:id', auth.staff, actualizarHabitacion);
+router.delete('/:id', auth.staff, eliminarHabitacion);
 
 export default router;

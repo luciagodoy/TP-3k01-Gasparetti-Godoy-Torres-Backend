@@ -12,11 +12,11 @@ class Provincia
   extends Model<ProvinciaAttributes, ProvinciaCreationAttributes>
   implements ProvinciaAttributes
 {
-  public id!: number;
-  public nombre!: string;
+  declare id: number;
+  declare nombre: string;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Provincia.init({

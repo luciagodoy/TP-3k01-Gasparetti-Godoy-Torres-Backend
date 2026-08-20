@@ -15,16 +15,16 @@ class CategoriaHabitacion
   extends Model<CategoriaHabitacionAttributes, CategoriaHabitacionCreationAttributes>
   implements CategoriaHabitacionAttributes
 {
-  public id!: number;
-  public denominacion!: string;
-  public descripcion!: string | null;
-  public capacidadPersonas!: number;
-  public imagenUrl!: string | null;
-  public precioNoche!: number;
+  declare id: number;
+  declare denominacion: string;
+  declare descripcion: string | null;
+  declare capacidadPersonas: number;
+  declare imagenUrl: string | null;
+  declare precioNoche: number;
 
   // Timestamps
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 CategoriaHabitacion.init({

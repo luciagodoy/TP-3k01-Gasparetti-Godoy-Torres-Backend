@@ -16,15 +16,15 @@ class User
   extends Model<UserAttributes, UserCreationAttributes>
   implements UserAttributes
 {
-  public id!: number;
-  public username!: string;
-  public email!: string;
-  public password!: string;
-  public role!: 'huesped' | 'empleado' | 'admin';
+  declare id: number;
+  declare username: string;
+  declare email: string;
+  declare password: string;
+  declare role: 'huesped' | 'empleado' | 'admin';
 
   // Timestamps automáticos (activados abajo)
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
   public async comparePassword(candidate: string): Promise<boolean> {
     return bcrypt.compare(candidate, this.password);

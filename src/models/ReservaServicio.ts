@@ -18,15 +18,15 @@ class ReservaServicio
   extends Model<ReservaServicioAttributes, ReservaServicioCreationAttributes>
   implements ReservaServicioAttributes
 {
-  public id!: number;
-  public cantidad!: number;
-  public precioUnitario!: number;
-  public montoTotal!: number;
-  public reservaId!: number;
-  public cupoId!: number;
+  declare id: number;
+  declare cantidad: number;
+  declare precioUnitario: number;
+  declare montoTotal: number;
+  declare reservaId: number;
+  declare cupoId: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
   public cupo?: Cupo;
 }
