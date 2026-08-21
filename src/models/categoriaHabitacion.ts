@@ -5,7 +5,7 @@ interface CategoriaHabitacionAttributes {
   denominacion: string;
   descripcion: string | null;
   capacidadPersonas: number;
-  imagenUrl: string | null;
+  imagenesUrl: string[];
   precioNoche: number;
 }
 
@@ -19,7 +19,7 @@ class CategoriaHabitacion
   declare denominacion: string;
   declare descripcion: string | null;
   declare capacidadPersonas: number;
-  declare imagenUrl: string | null;
+  declare imagenesUrl: string[];
   declare precioNoche: number;
 
   // Timestamps
@@ -46,9 +46,10 @@ CategoriaHabitacion.init({
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  imagenUrl: {
-    type: DataTypes.STRING,
-    allowNull: true
+  imagenesUrl: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: []
   },
   precioNoche: {
     type: DataTypes.DECIMAL(10, 2),
