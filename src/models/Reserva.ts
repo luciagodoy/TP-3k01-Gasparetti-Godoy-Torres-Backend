@@ -35,9 +35,9 @@ class Reserva
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
-  public huesped?: Huesped;
-  public habitacion?: Habitacion;
-  public serviciosConsumidos?: ReservaServicio[];
+  declare huesped?: Huesped;
+  declare habitacion?: Habitacion;
+  declare serviciosConsumidos?: ReservaServicio[];
 }
 
 // Inicialización del modelo

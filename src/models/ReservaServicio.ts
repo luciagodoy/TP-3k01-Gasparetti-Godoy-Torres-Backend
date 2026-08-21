@@ -28,7 +28,7 @@ class ReservaServicio
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
-  public cupo?: Cupo;
+  declare cupo?: Cupo;
 }
 
 ReservaServicio.init({

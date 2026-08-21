@@ -30,8 +30,8 @@ class Huesped
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
-  public usuario?: User;
-  public ciudad?: Ciudad;
+  declare usuario?: User;
+  declare ciudad?: Ciudad;
 }
 
 

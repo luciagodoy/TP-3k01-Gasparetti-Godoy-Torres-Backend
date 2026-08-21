@@ -21,7 +21,7 @@ class Ciudad
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
-  public provincia?: Provincia;
+  declare provincia?: Provincia;
 }
 
 Ciudad.init({

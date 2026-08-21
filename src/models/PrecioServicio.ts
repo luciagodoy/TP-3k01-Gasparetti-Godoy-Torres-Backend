@@ -25,7 +25,7 @@ class PrecioServicio
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
-  public servicio?: Servicio;
+  declare servicio?: Servicio;
 }
 
 PrecioServicio.init({

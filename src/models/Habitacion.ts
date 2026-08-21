@@ -28,7 +28,7 @@ class Habitacion
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
-  public categoria?: CategoriaHabitacion;
+  declare categoria?: CategoriaHabitacion;
 }
 
 // 4. Inicialización
