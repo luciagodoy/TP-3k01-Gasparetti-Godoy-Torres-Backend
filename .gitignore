@@ -2,4 +2,7 @@ node_modules/
 .env
 certs/
 dist/
+*.pid
+*.log
+
 
