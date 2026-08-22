@@ -17,16 +17,16 @@ class Empleado
   extends Model<EmpleadoAttributes, EmpleadoCreationAttributes>
   implements EmpleadoAttributes
 {
-  public id!: number;
-  public nombre!: string;
-  public apellido!: string;
-  public email!: string;
-  public telefono!: string | null;
-  public puesto!: string;
-  public estado!: 'activo' | 'inactivo';
+  declare id: number;
+  declare nombre: string;
+  declare apellido: string;
+  declare email: string;
+  declare telefono: string | null;
+  declare puesto: string;
+  declare estado: 'activo' | 'inactivo';
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Empleado.init({

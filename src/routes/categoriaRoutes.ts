@@ -12,8 +12,8 @@ const router = Router();
 
 router.get('/', listarCategorias);
 router.get('/:id', obtenerCategoria);
-router.post('/', auth.enhance, crearCategoria);
-router.put('/:id', auth.enhance, actualizarCategoria);
-router.delete('/:id', auth.enhance, eliminarCategoria);
+router.post('/', auth.staff, crearCategoria);
+router.put('/:id', auth.staff, actualizarCategoria);
+router.delete('/:id', auth.staff, eliminarCategoria);
 
 export default router;

@@ -14,14 +14,14 @@ class Ciudad
   extends Model<CiudadAttributes, CiudadCreationAttributes>
   implements CiudadAttributes
 {
-  public id!: number;
-  public nombre!: string;
-  public provinciaId!: number;
+  declare id: number;
+  declare nombre: string;
+  declare provinciaId: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
-  public provincia?: Provincia;
+  declare provincia?: Provincia;
 }
 
 Ciudad.init({

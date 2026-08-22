@@ -16,16 +16,16 @@ class PrecioServicio
   extends Model<PrecioServicioAttributes, PrecioServicioCreationAttributes>
   implements PrecioServicioAttributes
 {
-  public id!: number;
-  public precio!: number;
-  public fechaVigenciaDesde!: string;
-  public fechaVigenciaHasta!: string | null;
-  public servicioId!: number;
+  declare id: number;
+  declare precio: number;
+  declare fechaVigenciaDesde: string;
+  declare fechaVigenciaHasta: string | null;
+  declare servicioId: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
-  public servicio?: Servicio;
+  declare servicio?: Servicio;
 }
 
 PrecioServicio.init({

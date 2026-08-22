@@ -12,8 +12,8 @@ const router = Router();
 
 router.get('/', listarProvincias);
 router.get('/:id', obtenerProvincia);
-router.post('/', auth.enhance, crearProvincia);
-router.put('/:id', auth.enhance, actualizarProvincia);
-router.delete('/:id', auth.enhance, eliminarProvincia);
+router.post('/', auth.staff, crearProvincia);
+router.put('/:id', auth.staff, actualizarProvincia);
+router.delete('/:id', auth.staff, eliminarProvincia);
 
 export default router;

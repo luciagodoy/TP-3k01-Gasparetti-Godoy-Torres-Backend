@@ -15,15 +15,15 @@ class Cupo
   extends Model<CupoAttributes, CupoCreationAttributes>
   implements CupoAttributes
 {
-  public id!: number;
-  public cantidad!: number;
-  public disponibles!: number;
-  public servicioId!: number;
+  declare id: number;
+  declare cantidad: number;
+  declare disponibles: number;
+  declare servicioId: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
-  public servicio?: Servicio;
+  declare servicio?: Servicio;
 }
 
 Cupo.init({

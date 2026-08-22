@@ -5,7 +5,7 @@ interface CategoriaHabitacionBody {
   denominacion: string;
   descripcion?: string | null;
   capacidadPersonas: number;
-  imagenUrl?: string | null;
+  imagenesUrl?: string[];
   precioNoche?: number;
 }
 
@@ -14,12 +14,12 @@ export const crearCategoria = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { denominacion, descripcion, capacidadPersonas, imagenUrl, precioNoche } = req.body;
+    const { denominacion, descripcion, capacidadPersonas, imagenesUrl, precioNoche } = req.body;
     const categoria = await CategoriaHabitacion.create({
       denominacion,
       descripcion: descripcion ?? null,
       capacidadPersonas,
-      imagenUrl: imagenUrl ?? null,
+      imagenesUrl: imagenesUrl ?? [],
       precioNoche: precioNoche ?? 0
     });
     res.status(201).json(categoria);
@@ -63,12 +63,12 @@ export const actualizarCategoria = async (
       res.status(404).json({ error: 'Categoría no encontrada' });
       return;
     }
-    const { denominacion, descripcion, capacidadPersonas, imagenUrl, precioNoche } = req.body;
+    const { denominacion, descripcion, capacidadPersonas, imagenesUrl, precioNoche } = req.body;
     await categoria.update({
       ...(denominacion !== undefined && { denominacion }),
       ...(descripcion !== undefined && { descripcion }),
       ...(capacidadPersonas !== undefined && { capacidadPersonas }),
-      ...(imagenUrl !== undefined && { imagenUrl }),
+      ...(imagenesUrl !== undefined && { imagenesUrl }),
       ...(precioNoche !== undefined && { precioNoche })
     });
     res.json(categoria);

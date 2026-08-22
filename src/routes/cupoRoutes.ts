@@ -12,8 +12,8 @@ const router = Router();
 
 router.get('/', listarCupos);
 router.get('/:id', obtenerCupo);
-router.post('/', auth.enhance, crearCupo);
-router.put('/:id', auth.enhance, actualizarCupo);
-router.delete('/:id', auth.enhance, eliminarCupo);
+router.post('/', auth.staff, crearCupo);
+router.put('/:id', auth.staff, actualizarCupo);
+router.delete('/:id', auth.staff, eliminarCupo);
 
 export default router;

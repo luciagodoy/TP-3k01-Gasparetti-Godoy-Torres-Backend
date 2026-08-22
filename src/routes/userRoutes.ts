@@ -12,12 +12,10 @@ const router = Router();
 
 // Gestión de cuentas: solo administradores. El primer admin se crea vía seed
 // (ver src/config/seedAdmin.ts), no a través de esta API.
-router.use(auth.enhance);
-
-router.post('/', crearUsuario);
-router.get('/', listarUsuarios);
-router.get('/:id', obtenerUsuario);
-router.put('/:id', actualizarUsuario);
-router.delete('/:id', eliminarUsuario);
+router.post('/', auth.admin, crearUsuario);
+router.get('/', auth.admin, listarUsuarios);
+router.get('/:id', auth.admin, obtenerUsuario);
+router.put('/:id', auth.admin, actualizarUsuario);
+router.delete('/:id', auth.admin, eliminarUsuario);
 
 export default router;

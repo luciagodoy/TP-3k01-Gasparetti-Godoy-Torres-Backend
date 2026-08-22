@@ -70,7 +70,14 @@ export const registrarHuesped = async (
 
 export const listarHuespedes = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const huespedes = await Huesped.findAll({ include: INCLUDE_PERFIL });
+    // Solo cuentas que siguen siendo huésped: si alguien fue promovido a
+    // empleado/admin, su perfil de huésped viejo no debe listarse acá.
+    const huespedes = await Huesped.findAll({
+      include: [
+        { model: User, as: 'usuario', attributes: { exclude: ['password'] }, where: { role: 'huesped' } },
+        { model: Ciudad, as: 'ciudad', include: [{ model: Provincia, as: 'provincia' }] }
+      ]
+    });
     res.json(huespedes);
   } catch (error: any) {
     res.status(500).json({ error: 'Error al listar los huéspedes', detalle: error.message });

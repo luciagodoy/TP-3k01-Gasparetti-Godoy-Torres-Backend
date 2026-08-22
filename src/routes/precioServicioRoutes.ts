@@ -12,8 +12,8 @@ const router = Router();
 
 router.get('/', listarPreciosServicio);
 router.get('/:id', obtenerPrecioServicio);
-router.post('/', auth.enhance, crearPrecioServicio);
-router.put('/:id', auth.enhance, actualizarPrecioServicio);
-router.delete('/:id', auth.enhance, eliminarPrecioServicio);
+router.post('/', auth.staff, crearPrecioServicio);
+router.put('/:id', auth.staff, actualizarPrecioServicio);
+router.delete('/:id', auth.staff, eliminarPrecioServicio);
 
 export default router;

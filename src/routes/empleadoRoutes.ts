@@ -10,12 +10,10 @@ import auth from '../middleware/auth';
 
 const router = Router();
 
-router.use(auth.enhance);
-
-router.post('/', crearEmpleado);
-router.get('/', listarEmpleados);
-router.get('/:id', obtenerEmpleado);
-router.put('/:id', actualizarEmpleado);
-router.delete('/:id', eliminarEmpleado);
+router.post('/', auth.admin, crearEmpleado);
+router.get('/', auth.admin, listarEmpleados);
+router.get('/:id', auth.admin, obtenerEmpleado);
+router.put('/:id', auth.admin, actualizarEmpleado);
+router.delete('/:id', auth.admin, eliminarEmpleado);
 
 export default router;

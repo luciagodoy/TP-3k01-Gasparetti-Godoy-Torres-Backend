@@ -37,7 +37,7 @@ describe('Autenticación y protección de rutas por rol', () => {
     expect(res.status).toBe(401);
   });
 
-  it('POST /api/habitaciones con token de huésped es rechazado (401): no es admin', async () => {
+  it('POST /api/habitaciones con token de huésped es rechazado (401): no es staff', async () => {
     const token = await login('huesped1', 'clave123');
     const res = await request(app)
       .post('/api/habitaciones')
@@ -51,7 +51,7 @@ describe('Autenticación y protección de rutas por rol', () => {
       denominacion: 'Standard',
       descripcion: 'Habitación básica',
       capacidadPersonas: 2,
-      imagenUrl: null,
+      imagenesUrl: [],
       precioNoche: 50000
     });
     const token = await login('admin1', 'clave123');

@@ -19,19 +19,19 @@ class Huesped
   extends Model<HuespedAttributes, HuespedCreationAttributes>
   implements HuespedAttributes
 {
-  public id!: number;
-  public telefono!: string | null;
-  public documentoIdentidad!: string;
-  public ciudadId!: number;
-  public pais!: string;
-  public userId!: number;
+  declare id: number;
+  declare telefono: string | null;
+  declare documentoIdentidad: string;
+  declare ciudadId: number;
+  declare pais: string;
+  declare userId: number;
 
   // Timestamps automáticos de Sequelize
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
-  public usuario?: User;
-  public ciudad?: Ciudad;
+  declare usuario?: User;
+  declare ciudad?: Ciudad;
 }
 
 

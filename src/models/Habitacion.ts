@@ -19,16 +19,16 @@ class Habitacion
   extends Model<HabitacionAttributes, HabitacionCreationAttributes> 
   implements HabitacionAttributes 
 {
-  public id!: number;
-  public numero!: number;
-  public piso!: number;
-  public estadoDisponibilidad!: 'disponible' | 'ocupada' | 'mantenimiento';
-  public categoriaId!: number; 
+  declare id: number;
+  declare numero: number;
+  declare piso: number;
+  declare estadoDisponibilidad: 'disponible' | 'ocupada' | 'mantenimiento';
+  declare categoriaId: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 
-  public categoria?: CategoriaHabitacion;
+  declare categoria?: CategoriaHabitacion;
 }
 
 // 4. Inicialización

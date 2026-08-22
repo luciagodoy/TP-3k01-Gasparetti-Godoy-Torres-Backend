@@ -13,10 +13,9 @@ const router = Router();
 
 router.post('/registro', registrarHuesped);
 router.get('/me', auth.simple, obtenerMiPerfilHuesped);
-
-router.get('/', auth.enhance, listarHuespedes);
-router.get('/:id', auth.enhance, obtenerHuesped);
-router.put('/:id', auth.enhance, actualizarHuesped);
-router.delete('/:id', auth.enhance, eliminarHuesped);
+router.get('/', auth.staff, listarHuespedes);
+router.get('/:id', auth.staff, obtenerHuesped);
+router.put('/:id', auth.staff, actualizarHuesped);
+router.delete('/:id', auth.staff, eliminarHuesped);
 
 export default router;
