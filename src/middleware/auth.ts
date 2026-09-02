@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
+import { getJwtSecret } from '../config/jwt';
 
 // 1. Interfaz que describe el contenido del Token JWT al decodificarse
 interface DecodedToken {
@@ -29,7 +30,7 @@ const requireRole = (...rolesPermitidos: Rol[]) => {
       if (!authHeader) throw new Error();
 
       const token = authHeader.replace('Bearer ', '');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'mySecret') as DecodedToken;
+      const decoded = jwt.verify(token, getJwtSecret()) as DecodedToken;
 
       // Buscamos el usuario en MySQL por su ID primario
       const user = await User.findByPk(decoded.id);

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import PrecioServicio from '../models/PrecioServicio';
 import Servicio from '../models/Servicio';
+import { detalleError } from '../utils/errorDetalle';
 
 interface PrecioServicioBody {
   precio: number;
@@ -49,7 +50,7 @@ export const crearPrecioServicio = async (
     });
     res.status(201).json(precioServicio);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear el precio del servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear el precio del servicio', detalle: detalleError(error) });
   }
 };
 
@@ -77,7 +78,7 @@ export const listarPreciosServicio = async (
     });
     res.json(precios);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los precios de servicio', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los precios de servicio', detalle: detalleError(error) });
   }
 };
 
@@ -95,7 +96,7 @@ export const obtenerPrecioServicio = async (
     }
     res.json(precioServicio);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el precio del servicio', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el precio del servicio', detalle: detalleError(error) });
   }
 };
 
@@ -118,7 +119,7 @@ export const actualizarPrecioServicio = async (
     });
     res.json(precioServicio);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar el precio del servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el precio del servicio', detalle: detalleError(error) });
   }
 };
 
@@ -135,6 +136,6 @@ export const eliminarPrecioServicio = async (
     await precioServicio.destroy();
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al eliminar el precio del servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al eliminar el precio del servicio', detalle: detalleError(error) });
   }
 };

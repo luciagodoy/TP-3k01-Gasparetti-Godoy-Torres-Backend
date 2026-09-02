@@ -7,6 +7,7 @@ import Servicio from '../models/Servicio';
 import Reserva from '../models/Reserva';
 import Huesped from '../models/Huesped';
 import { buscarPrecioVigente } from './controladorPrecioServicio';
+import { detalleError } from '../utils/errorDetalle';
 
 interface CrearReservaServicioBody {
   reservaId: number;
@@ -83,7 +84,7 @@ export const crearReservaServicio = async (
     res.status(resultado.status).json(resultado.body);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al registrar el consumo del servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al registrar el consumo del servicio', detalle: detalleError(error) });
   }
 };
 
@@ -132,7 +133,7 @@ export const crearReservaServicioPropio = async (
     res.status(resultado.status).json(resultado.body);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al agregar el servicio a tu reserva', detalle: error.message });
+    res.status(400).json({ error: 'Error al agregar el servicio a tu reserva', detalle: detalleError(error) });
   }
 };
 
@@ -149,7 +150,7 @@ export const listarReservaServicio = async (
     const lineas = await ReservaServicio.findAll({ where, include: INCLUDE_CUPO });
     res.json(lineas);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los consumos de servicio', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los consumos de servicio', detalle: detalleError(error) });
   }
 };
 
@@ -165,7 +166,7 @@ export const obtenerReservaServicio = async (
     }
     res.json(linea);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el consumo de servicio', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el consumo de servicio', detalle: detalleError(error) });
   }
 };
 
@@ -214,7 +215,7 @@ export const actualizarReservaServicio = async (
     res.json(linea);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al actualizar el consumo de servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el consumo de servicio', detalle: detalleError(error) });
   }
 };
 
@@ -241,6 +242,6 @@ export const eliminarReservaServicio = async (
     res.status(204).send();
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al eliminar el consumo de servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al eliminar el consumo de servicio', detalle: detalleError(error) });
   }
 };

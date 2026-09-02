@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Op } from 'sequelize';
 import User from '../models/User';
+import { getJwtSecret } from '../config/jwt';
+import { detalleError } from '../utils/errorDetalle';
 
 interface LoginBody {
   username: string;
@@ -28,7 +30,7 @@ export const login = async (
 
     const token = jwt.sign(
       { id: user.id },
-      process.env.JWT_SECRET || 'mySecret',
+      getJwtSecret(),
       { expiresIn: '1d' }
     );
 
@@ -36,6 +38,6 @@ export const login = async (
 
     return res.json({ token, usuario: usuarioSinPassword });
   } catch (error: any) {
-    return res.status(500).json({ error: 'Error al iniciar sesión', detalle: error.message });
+    return res.status(500).json({ error: 'Error al iniciar sesión', detalle: detalleError(error) });
   }
 };

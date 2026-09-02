@@ -10,6 +10,7 @@ import User from '../models/User';
 import ReservaServicio from '../models/ReservaServicio';
 import Cupo from '../models/Cupo';
 import Servicio from '../models/Servicio';
+import { detalleError } from '../utils/errorDetalle';
 
 interface CrearReservaBody {
   fechaInicio: string;
@@ -117,7 +118,7 @@ export const crearReserva = async (
     await t.rollback();
     res.status(500).json({
       error: 'Error al procesar la reserva',
-      detalle: error.message
+      detalle: detalleError(error)
     });
   }
 };
@@ -142,7 +143,7 @@ export const listarReservas = async (
     });
     res.json(reservas);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar las reservas', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar las reservas', detalle: detalleError(error) });
   }
 };
 
@@ -160,7 +161,7 @@ export const obtenerReserva = async (
     }
     res.json(reserva);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener la reserva', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener la reserva', detalle: detalleError(error) });
   }
 };
 
@@ -212,7 +213,7 @@ export const actualizarReserva = async (
     res.json(reserva);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al actualizar la reserva', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar la reserva', detalle: detalleError(error) });
   }
 };
 
@@ -229,7 +230,7 @@ export const eliminarReserva = async (
     await reserva.destroy();
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al eliminar la reserva', detalle: error.message });
+    res.status(400).json({ error: 'Error al eliminar la reserva', detalle: detalleError(error) });
   }
 };
 
@@ -291,7 +292,7 @@ export const crearReservaPropia = async (
     res.status(201).json({ mensaje: '¡Reserva realizada con éxito!', reserva: nuevaReserva });
   } catch (error: any) {
     await t.rollback();
-    res.status(500).json({ error: 'Error al procesar la reserva', detalle: error.message });
+    res.status(500).json({ error: 'Error al procesar la reserva', detalle: detalleError(error) });
   }
 };
 
@@ -312,7 +313,7 @@ export const listarMisReservas = async (req: Request, res: Response): Promise<vo
     });
     res.json(reservas);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar tus reservas', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar tus reservas', detalle: detalleError(error) });
   }
 };
 
@@ -345,7 +346,7 @@ export const cancelarReservaPropia = async (
     res.json({ mensaje: 'Reserva cancelada correctamente', reserva });
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al cancelar la reserva', detalle: error.message });
+    res.status(400).json({ error: 'Error al cancelar la reserva', detalle: detalleError(error) });
   }
 };
 
@@ -384,7 +385,7 @@ export const realizarCheckIn = async (
     res.json({ mensaje: 'Check-in realizado con éxito', reserva });
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al procesar el check-in', detalle: error.message });
+    res.status(400).json({ error: 'Error al procesar el check-in', detalle: detalleError(error) });
   }
 };
 
@@ -433,7 +434,7 @@ export const realizarCheckOut = async (
     generarComprobantePDF(reservaCompleta, res);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al procesar el check-out', detalle: error.message });
+    res.status(400).json({ error: 'Error al procesar el check-out', detalle: detalleError(error) });
   }
 };
 
@@ -453,7 +454,7 @@ export const descargarComprobante = async (
     }
     generarComprobantePDF(reserva, res);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al generar el comprobante', detalle: error.message });
+    res.status(500).json({ error: 'Error al generar el comprobante', detalle: detalleError(error) });
   }
 };
 

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Empleado from '../models/Empleado';
+import { detalleError } from '../utils/errorDetalle';
 
 interface EmpleadoBody {
   nombre: string;
@@ -26,7 +27,7 @@ export const crearEmpleado = async (
     });
     res.status(201).json(empleado);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear el empleado', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear el empleado', detalle: detalleError(error) });
   }
 };
 
@@ -35,7 +36,7 @@ export const listarEmpleados = async (_req: Request, res: Response): Promise<voi
     const empleados = await Empleado.findAll();
     res.json(empleados);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los empleados', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los empleados', detalle: detalleError(error) });
   }
 };
 
@@ -51,7 +52,7 @@ export const obtenerEmpleado = async (
     }
     res.json(empleado);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el empleado', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el empleado', detalle: detalleError(error) });
   }
 };
 
@@ -76,7 +77,7 @@ export const actualizarEmpleado = async (
     });
     res.json(empleado);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar el empleado', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el empleado', detalle: detalleError(error) });
   }
 };
 
@@ -93,6 +94,6 @@ export const eliminarEmpleado = async (
     await empleado.destroy();
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al eliminar el empleado', detalle: error.message });
+    res.status(400).json({ error: 'Error al eliminar el empleado', detalle: detalleError(error) });
   }
 };

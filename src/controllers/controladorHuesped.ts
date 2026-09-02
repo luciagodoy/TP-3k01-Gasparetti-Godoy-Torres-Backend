@@ -5,6 +5,7 @@ import User from '../models/User';
 import Huesped from '../models/Huesped';
 import Ciudad from '../models/Ciudad';
 import Provincia from '../models/Provincia';
+import { detalleError } from '../utils/errorDetalle';
 
 // estructura exacta a recibir en el Body de la petición
 interface RegistrarHuespedBody {
@@ -63,7 +64,7 @@ export const registrarHuesped = async (
     await t.rollback();
     res.status(400).json({
       error: 'Error al registrar',
-      detalle: error.message
+      detalle: detalleError(error)
     });
   }
 };
@@ -80,7 +81,7 @@ export const listarHuespedes = async (_req: Request, res: Response): Promise<voi
     });
     res.json(huespedes);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los huéspedes', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los huéspedes', detalle: detalleError(error) });
   }
 };
 
@@ -99,7 +100,7 @@ export const obtenerMiPerfilHuesped = async (
     }
     res.json(huesped);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el perfil del huésped', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el perfil del huésped', detalle: detalleError(error) });
   }
 };
 
@@ -115,7 +116,7 @@ export const obtenerHuesped = async (
     }
     res.json(huesped);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el huésped', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el huésped', detalle: detalleError(error) });
   }
 };
 
@@ -138,7 +139,7 @@ export const actualizarHuesped = async (
     });
     res.json(huesped);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar el huésped', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el huésped', detalle: detalleError(error) });
   }
 };
 

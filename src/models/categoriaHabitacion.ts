@@ -22,7 +22,6 @@ class CategoriaHabitacion
   declare imagenesUrl: string[];
   declare precioNoche: number;
 
-  // Timestamps
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }

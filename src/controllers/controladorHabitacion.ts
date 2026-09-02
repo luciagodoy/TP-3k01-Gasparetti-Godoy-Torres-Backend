@@ -3,6 +3,7 @@ import { Op, WhereOptions } from 'sequelize';
 import Habitacion from '../models/Habitacion';
 import CategoriaHabitacion from '../models/categoriaHabitacion';
 import Reserva from '../models/Reserva';
+import { detalleError } from '../utils/errorDetalle';
 
 // Definir la estructura estricta de la URL (Query Params)
 interface BuscarHabitacionQuery {
@@ -90,7 +91,7 @@ export const listarHabitacionesFiltradas = async (
   } catch (error: any) {
     res.status(500).json({
       error: 'Error al filtrar las habitaciones',
-      detalle: error.message
+      detalle: detalleError(error)
     });
   }
 };
@@ -109,7 +110,7 @@ export const crearHabitacion = async (
     });
     res.status(201).json(habitacion);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear la habitación', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear la habitación', detalle: detalleError(error) });
   }
 };
 
@@ -127,7 +128,7 @@ export const obtenerHabitacion = async (
     }
     res.json(habitacion);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener la habitación', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener la habitación', detalle: detalleError(error) });
   }
 };
 
@@ -150,7 +151,7 @@ export const actualizarHabitacion = async (
     });
     res.json(habitacion);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar la habitación', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar la habitación', detalle: detalleError(error) });
   }
 };
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Ciudad from '../models/Ciudad';
 import Provincia from '../models/Provincia';
+import { detalleError } from '../utils/errorDetalle';
 
 interface CiudadBody {
   nombre: string;
@@ -20,7 +21,7 @@ export const crearCiudad = async (
     const ciudad = await Ciudad.create({ nombre, provinciaId });
     res.status(201).json(ciudad);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear la ciudad', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear la ciudad', detalle: detalleError(error) });
   }
 };
 
@@ -37,7 +38,7 @@ export const listarCiudades = async (
     });
     res.json(ciudades);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar las ciudades', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar las ciudades', detalle: detalleError(error) });
   }
 };
 
@@ -55,7 +56,7 @@ export const obtenerCiudad = async (
     }
     res.json(ciudad);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener la ciudad', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener la ciudad', detalle: detalleError(error) });
   }
 };
 
@@ -76,7 +77,7 @@ export const actualizarCiudad = async (
     });
     res.json(ciudad);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar la ciudad', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar la ciudad', detalle: detalleError(error) });
   }
 };
 

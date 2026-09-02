@@ -2,8 +2,8 @@
 > tp-3k01-gasparetti-godoy-torres-backend@1.0.0 dev
 > tsx watch src/index.ts
 
-◇ injected env (10) from .env // tip: ⌁ auth for agents [www.vestauth.com]
-◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+◇ injected env (10) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
  Conexión a MySQL establecida con éxito (TS).
  Tablas sincronizadas correctamente.
 Servidor TypeScript corriendo en http://localhost:3000

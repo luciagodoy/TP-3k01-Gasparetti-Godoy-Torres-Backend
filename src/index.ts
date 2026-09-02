@@ -17,12 +17,17 @@ import PrecioServicio from './models/PrecioServicio';
 import ReservaServicio from './models/ReservaServicio';
 import Empleado from './models/Empleado';
 import { seedAdmin } from './config/seedAdmin';
+import { getJwtSecret } from './config/jwt';
 
 const PORT = process.env.PORT || 3000;
 
 // === ARRANQUE DEL SERVIODR ===
 async function iniciarServidor(): Promise<void> {
   try {
+    // Chequeo de configuración antes de escuchar: si falta JWT_SECRET preferimos
+    // no arrancar, en vez de descubrirlo recién en el primer login.
+    getJwtSecret();
+
     await sequelize.authenticate();
     console.log(' Conexión a MySQL establecida con éxito (TS).');
     
@@ -35,7 +40,10 @@ async function iniciarServidor(): Promise<void> {
       console.log(`Servidor TypeScript corriendo en http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('Error crítico al conectar a la base de datos:', error);
+    // Salimos con código distinto de cero: si el arranque falla, el proceso no
+    // debe quedar "vivo pero inservible" (antes seguía corriendo sin servidor).
+    console.error('Error crítico durante el arranque del servidor:', error);
+    process.exit(1);
   }
 }
 

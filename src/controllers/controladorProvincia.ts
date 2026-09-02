@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Provincia from '../models/Provincia';
+import { detalleError } from '../utils/errorDetalle';
 
 interface ProvinciaBody {
   nombre: string;
@@ -14,7 +15,7 @@ export const crearProvincia = async (
     const provincia = await Provincia.create({ nombre });
     res.status(201).json(provincia);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear la provincia', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear la provincia', detalle: detalleError(error) });
   }
 };
 
@@ -23,7 +24,7 @@ export const listarProvincias = async (_req: Request, res: Response): Promise<vo
     const provincias = await Provincia.findAll();
     res.json(provincias);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar las provincias', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar las provincias', detalle: detalleError(error) });
   }
 };
 
@@ -39,7 +40,7 @@ export const obtenerProvincia = async (
     }
     res.json(provincia);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener la provincia', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener la provincia', detalle: detalleError(error) });
   }
 };
 
@@ -57,7 +58,7 @@ export const actualizarProvincia = async (
     await provincia.update({ ...(nombre !== undefined && { nombre }) });
     res.json(provincia);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar la provincia', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar la provincia', detalle: detalleError(error) });
   }
 };
 

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Servicio from '../models/Servicio';
+import { detalleError } from '../utils/errorDetalle';
 
 interface ServicioBody {
   nombre: string;
@@ -15,7 +16,7 @@ export const crearServicio = async (
     const servicio = await Servicio.create({ nombre, descripcion: descripcion ?? null });
     res.status(201).json(servicio);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear el servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear el servicio', detalle: detalleError(error) });
   }
 };
 
@@ -24,7 +25,7 @@ export const listarServicios = async (_req: Request, res: Response): Promise<voi
     const servicios = await Servicio.findAll();
     res.json(servicios);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los servicios', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los servicios', detalle: detalleError(error) });
   }
 };
 
@@ -40,7 +41,7 @@ export const obtenerServicio = async (
     }
     res.json(servicio);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el servicio', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el servicio', detalle: detalleError(error) });
   }
 };
 
@@ -61,7 +62,7 @@ export const actualizarServicio = async (
     });
     res.json(servicio);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar el servicio', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el servicio', detalle: detalleError(error) });
   }
 };
 

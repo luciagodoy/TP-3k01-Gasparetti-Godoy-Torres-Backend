@@ -8,10 +8,11 @@ import {
   eliminarHuesped
 } from '../controllers/controladorHuesped';
 import auth from '../middleware/auth';
+import { registroLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
-router.post('/registro', registrarHuesped);
+router.post('/registro', registroLimiter, registrarHuesped);
 router.get('/me', auth.simple, obtenerMiPerfilHuesped);
 router.get('/', auth.staff, listarHuespedes);
 router.get('/:id', auth.staff, obtenerHuesped);

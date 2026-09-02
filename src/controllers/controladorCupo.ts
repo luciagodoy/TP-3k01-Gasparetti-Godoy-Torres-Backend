@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Cupo from '../models/Cupo';
 import Servicio from '../models/Servicio';
+import { detalleError } from '../utils/errorDetalle';
 
 // disponibles NUNCA se acepta del cliente: lo gestiona el servidor para mantener el invariante
 // 0 <= disponibles <= cantidad (ver también controladorReservaServicio.ts, que lo decrementa/incrementa).
@@ -27,7 +28,7 @@ export const crearCupo = async (
     const cupo = await Cupo.create({ cantidad, disponibles: cantidad, servicioId });
     res.status(201).json(cupo);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear el cupo', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear el cupo', detalle: detalleError(error) });
   }
 };
 
@@ -44,7 +45,7 @@ export const listarCupos = async (
     });
     res.json(cupos);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los cupos', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los cupos', detalle: detalleError(error) });
   }
 };
 
@@ -62,7 +63,7 @@ export const obtenerCupo = async (
     }
     res.json(cupo);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el cupo', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el cupo', detalle: detalleError(error) });
   }
 };
 
@@ -99,7 +100,7 @@ export const actualizarCupo = async (
     });
     res.json(cupo);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar el cupo', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el cupo', detalle: detalleError(error) });
   }
 };
 

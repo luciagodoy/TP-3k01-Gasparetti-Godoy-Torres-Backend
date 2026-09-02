@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import CategoriaHabitacion from '../models/categoriaHabitacion';
+import { detalleError } from '../utils/errorDetalle';
 
 interface CategoriaHabitacionBody {
   denominacion: string;
@@ -24,7 +25,7 @@ export const crearCategoria = async (
     });
     res.status(201).json(categoria);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear la categoría', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear la categoría', detalle: detalleError(error) });
   }
 };
 
@@ -33,7 +34,7 @@ export const listarCategorias = async (_req: Request, res: Response): Promise<vo
     const categorias = await CategoriaHabitacion.findAll();
     res.json(categorias);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar las categorías', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar las categorías', detalle: detalleError(error) });
   }
 };
 
@@ -49,7 +50,7 @@ export const obtenerCategoria = async (
     }
     res.json(categoria);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener la categoría', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener la categoría', detalle: detalleError(error) });
   }
 };
 
@@ -73,7 +74,7 @@ export const actualizarCategoria = async (
     });
     res.json(categoria);
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar la categoría', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar la categoría', detalle: detalleError(error) });
   }
 };
 

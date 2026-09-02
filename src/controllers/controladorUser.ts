@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import { detalleError } from '../utils/errorDetalle';
 
 interface UserBody {
   username: string;
@@ -29,7 +30,7 @@ export const crearUsuario = async (
     const usuario = await User.create({ username, email, password, role });
     res.status(201).json(limpiarUsuario(usuario));
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al crear el usuario', detalle: error.message });
+    res.status(400).json({ error: 'Error al crear el usuario', detalle: detalleError(error) });
   }
 };
 
@@ -38,7 +39,7 @@ export const listarUsuarios = async (_req: Request, res: Response): Promise<void
     const usuarios = await User.findAll();
     res.json(usuarios.map(limpiarUsuario));
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar los usuarios', detalle: error.message });
+    res.status(500).json({ error: 'Error al listar los usuarios', detalle: detalleError(error) });
   }
 };
 
@@ -55,7 +56,7 @@ export const obtenerUsuario = async (
 
     res.json(limpiarUsuario(usuario));
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener el usuario', detalle: error.message });
+    res.status(500).json({ error: 'Error al obtener el usuario', detalle: detalleError(error) });
   }
 };
 
@@ -80,7 +81,7 @@ export const actualizarUsuario = async (
 
     res.json(limpiarUsuario(usuario));
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al actualizar el usuario', detalle: error.message });
+    res.status(400).json({ error: 'Error al actualizar el usuario', detalle: detalleError(error) });
   }
 };
 
@@ -98,6 +99,6 @@ export const eliminarUsuario = async (
     await usuario.destroy();
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al eliminar el usuario', detalle: error.message });
+    res.status(400).json({ error: 'Error al eliminar el usuario', detalle: detalleError(error) });
   }
 };
