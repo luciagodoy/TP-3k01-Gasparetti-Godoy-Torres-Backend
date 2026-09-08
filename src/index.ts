@@ -36,8 +36,16 @@ async function iniciarServidor(): Promise<void> {
 
     await seedAdmin();
 
-    app.listen(PORT, () => {
+    // El error de listen (p. ej. EADDRINUSE) llega de forma asíncrona y no lo
+    // agarra el try/catch: sin este handler el proceso quedaba "arrancado"
+    // según el log pero sin nadie escuchando el puerto.
+    const server = app.listen(PORT, () => {
       console.log(`Servidor TypeScript corriendo en http://localhost:${PORT}`);
+    });
+
+    server.on('error', (error) => {
+      console.error(`No se pudo escuchar en el puerto ${PORT}:`, error);
+      process.exit(1);
     });
   } catch (error) {
     // Salimos con código distinto de cero: si el arranque falla, el proceso no
