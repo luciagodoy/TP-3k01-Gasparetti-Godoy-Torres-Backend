@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
-dotenv.config(); 
+dotenv.config();
 
-import { sequelize } from './config/database';
+import {sequelize} from './config/database';
 import app from './app';
 import './models/index';
 import User from './models/User';
@@ -16,8 +16,8 @@ import Cupo from './models/Cupo';
 import PrecioServicio from './models/PrecioServicio';
 import ReservaServicio from './models/ReservaServicio';
 import Empleado from './models/Empleado';
-import { seedAdmin } from './config/seedAdmin';
-import { getJwtSecret } from './config/jwt';
+import {seedAdmin} from './config/seedAdmin';
+import {getJwtSecret} from './config/jwt';
 
 const PORT = process.env.PORT || 3000;
 
@@ -30,8 +30,8 @@ async function iniciarServidor(): Promise<void> {
 
     await sequelize.authenticate();
     console.log(' Conexión a MySQL establecida con éxito (TS).');
-    
-    await sequelize.sync({ alter: true });
+
+    await sequelize.sync({alter: true});
     console.log(' Tablas sincronizadas correctamente.');
 
     await seedAdmin();

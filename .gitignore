@@ -7,3 +7,5 @@ dist/
 SESSION-SUMMARY.md
 COMO-EJECUTAR.md
 .claude/skills/security-audit/SKILL.md
+agents/
+CLAUDE.md
