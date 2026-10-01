@@ -4,8 +4,5 @@ certs/
 dist/
 *.pid
 *.log
-SESSION-SUMMARY.md
 COMO-EJECUTAR.md
-.claude/skills/security-audit/SKILL.md
-agents/
-CLAUDE.md
+docs/agents/

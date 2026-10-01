@@ -1,0 +1,21 @@
+# Secretos: el .env real (contraseña de Aiven, JWT_SECRET) jamás debe entrar a
+# una capa de la imagen. Las capas son inmutables: borrarlo después en otro RUN
+# lo oculta del filesystem pero queda recuperable en el historial de la imagen.
+.env
+.env.*
+!.env.example
+certs/
+
+# Se regeneran dentro de la imagen
+node_modules/
+dist/
+
+# Ruido de desarrollo
+.git/
+.github/
+.claude/
+*.log
+*.pid
+coverage/
+*.mwb
+*.mwb.bak

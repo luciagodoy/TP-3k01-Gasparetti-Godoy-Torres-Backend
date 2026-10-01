@@ -31,8 +31,20 @@ async function iniciarServidor(): Promise<void> {
     await sequelize.authenticate();
     console.log(' Conexión a MySQL establecida con éxito (TS).');
 
-    await sequelize.sync({alter: true});
-    console.log(' Tablas sincronizadas correctamente.');
+    // sync({ alter: true }) compara los modelos con las tablas y emite ALTER
+    // TABLE en caliente. En desarrollo es cómodo; contra la base de producción
+    // es un cambio de esquema sin revisión previa y sin forma de volver atrás.
+    // En producción sólo corre si se pide explícitamente con DB_SYNC=alter (por
+    // ejemplo, en el primer deploy, para crear las tablas).
+    const sincronizarEsquema =
+      process.env.NODE_ENV !== 'production' || process.env.DB_SYNC === 'alter';
+
+    if (sincronizarEsquema) {
+      await sequelize.sync({alter: true});
+      console.log(' Tablas sincronizadas correctamente.');
+    } else {
+      console.log(' Sincronización de esquema omitida (producción sin DB_SYNC=alter).');
+    }
 
     await seedAdmin();
 

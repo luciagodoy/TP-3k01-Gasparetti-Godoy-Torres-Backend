@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancela la corrida anterior de la misma rama si llega un push nuevo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Las mismas versiones que promete "engines" en package.json: así esa
+      # promesa queda verificada en cada push en vez de ser sólo una declaración.
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # Corre contra SQLite en memoria (ver vitest.config.mts): no necesita la
+      # base real ni ningún secreto del repositorio.
+      - run: npm test
+
+  audit:
+    name: Auditoría de dependencias
+    runs-on: ubuntu-latest
+    # Job aparte y en paralelo: los avisos de seguridad se publican aunque el
+    # código no cambie, así que una vulnerabilidad nueva aparece como su propio
+    # check en rojo, sin tapar si los tests pasaron o no.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Umbral "high" a propósito: el aviso moderado de uuid (vía sequelize 6)
+      # no tiene arreglo real; el único "fix" es bajar a sequelize 3, que rompe
+      # todo. Con "moderate" el pipeline quedaría en rojo para siempre.
+      - run: npm audit --audit-level=high
+
+  docker:
+    name: Build de la imagen Docker
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Sólo construye, no publica: verifica que el Dockerfile siga compilando.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: tp-dsw-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Agrupa parches y minors en un solo PR semanal: para un equipo de tres,
+    # un PR por paquete sería ruido que termina ignorándose. Las versiones
+    # major quedan en PRs separados porque pueden romper y conviene revisarlas
+    # de a una (ver el caso sequelize 6 -> 3 que propone npm audit --force).
+    groups:
+      menores-y-parches:
+        update-types: [minor, patch]
+
+  # Mantiene al día las acciones del propio workflow (checkout, setup-node...).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
