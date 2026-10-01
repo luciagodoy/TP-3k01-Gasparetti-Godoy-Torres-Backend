@@ -1,0 +1,6 @@
+{
+  // Sólo para "npm run build": compila la app sin los tests. tsconfig.json
+  // sigue incluyéndolos para que "npm run typecheck" también los revise.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist", "src/test/**", "src/**/*.test.ts"]
+}

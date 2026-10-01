@@ -18,3 +18,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+
+  # Actualiza la imagen base fijada en el Dockerfile (node:X.Y.Z-alpineA.B).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

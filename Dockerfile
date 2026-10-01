@@ -1,7 +1,11 @@
 # syntax=docker/dockerfile:1
 
+# Versión exacta de Node y Alpine: con "node:22-alpine" dos builds del mismo
+# commit podían salir distintas. Dependabot (ecosistema docker) propone el
+# próximo parche como PR, así el pin no se queda atrás con CVEs sin arreglar.
+
 # ---- Etapa 1: compilar TypeScript ----
-FROM node:22-alpine AS builder
+FROM node:22.23.3-alpine3.24 AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -9,12 +13,12 @@ COPY package.json package-lock.json ./
 # tests: así la imagen de build no necesita python/make/g++.
 RUN npm ci --ignore-scripts
 
-COPY tsconfig.json ./
+COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 RUN npm run build
 
 # ---- Etapa 2: imagen de producción ----
-FROM node:22-alpine AS runner
+FROM node:22.23.3-alpine3.24 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 

@@ -1,0 +1,37 @@
+# Corre localmente la MISMA imagen de producción, con el endurecimiento con el
+# que fue probada. No es orquestación para producción: en el deploy real estas
+# restricciones las aplica la plataforma.
+#
+#   docker compose up --build -d     # levantar
+#   docker compose logs -f api       # ver logs
+#   docker compose down              # bajar
+services:
+  api:
+    build: .
+    image: tp-dsw-backend:local
+    ports:
+      - "${API_PORT:-3000}:3000"
+    # Secretos en tiempo de ejecución desde el .env (gitignoreado): nunca
+    # quedan dentro de la imagen.
+    env_file: .env
+    environment:
+      PORT: "3000"
+    # El CA de Aiven se monta de sólo lectura en vez de copiarse a la imagen.
+    # Coincide con DB_CA_PATH=./certs/aiven-ca.pem del .env (WORKDIR es /app).
+    volumes:
+      - ./certs:/app/certs:ro
+
+    # --- Endurecimiento (verificado: login, PDF y TLS funcionan así) ---
+    # Filesystem de sólo lectura: la app no escribe a disco (el PDF del
+    # comprobante se transmite directo a la respuesta).
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    # Ninguna capability de Linux: escucha en el 3000 (>1024), no las necesita.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    restart: unless-stopped

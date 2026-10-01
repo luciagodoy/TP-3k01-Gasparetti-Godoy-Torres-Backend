@@ -19,3 +19,9 @@ dist/
 coverage/
 *.mwb
 *.mwb.bak
+
+# No hacen falta para construir la imagen
+Dockerfile
+.dockerignore
+docker-compose*.yml
+*.md
