@@ -1,12 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { Request, Response } from 'express';
+import {describe, it, expect, vi} from 'vitest';
+import {Request, Response} from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import auth from './auth';
 
 const crearRequestFalso = (token?: string): Request =>
   ({
-    header: (nombre: string) => (nombre === 'Authorization' && token ? `Bearer ${token}` : undefined),
+    header: (nombre: string) => (nombre === 'Authorization' && token ? `Bearer ${token}` : undefined)
   }) as unknown as Request;
 
 const crearResponseFalso = (): Response => {
@@ -16,7 +16,7 @@ const crearResponseFalso = (): Response => {
   return res as Response;
 };
 
-const tokenPara = (userId: number) => jwt.sign({ id: userId }, process.env.JWT_SECRET || 'mySecret');
+const tokenPara = (userId: number) => jwt.sign({id: userId}, process.env.JWT_SECRET || 'mySecret');
 
 describe('middleware de autenticación', () => {
   it('rechaza con 401 si no viene el header Authorization', async () => {
@@ -42,7 +42,7 @@ describe('middleware de autenticación', () => {
   });
 
   it('auth.simple deja pasar a cualquier usuario logueado, sin importar el rol', async () => {
-    const user = await User.create({ username: 'huesped1', email: 'huesped1@example.com', password: 'clave123', role: 'huesped' });
+    const user = await User.create({username: 'huesped1', email: 'huesped1@example.com', password: 'clave123', role: 'huesped'});
     const req = crearRequestFalso(tokenPara(user.id));
     const res = crearResponseFalso();
     const next = vi.fn();
@@ -54,19 +54,20 @@ describe('middleware de autenticación', () => {
   });
 
   it('auth.staff rechaza a un huésped', async () => {
-    const user = await User.create({ username: 'huesped2', email: 'huesped2@example.com', password: 'clave123', role: 'huesped' });
+    const user = await User.create({username: 'huesped2', email: 'huesped2@example.com', password: 'clave123', role: 'huesped'});
     const req = crearRequestFalso(tokenPara(user.id));
     const res = crearResponseFalso();
     const next = vi.fn();
 
     await auth.staff(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
+    // Token válido pero rol insuficiente: 403, no 401 (no debe cerrarle la sesión).
+    expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('auth.staff deja pasar a un empleado', async () => {
-    const user = await User.create({ username: 'empleado1', email: 'empleado1@example.com', password: 'clave123', role: 'empleado' });
+    const user = await User.create({username: 'empleado1', email: 'empleado1@example.com', password: 'clave123', role: 'empleado'});
     const req = crearRequestFalso(tokenPara(user.id));
     const res = crearResponseFalso();
     const next = vi.fn();
@@ -77,7 +78,7 @@ describe('middleware de autenticación', () => {
   });
 
   it('auth.staff deja pasar a un admin', async () => {
-    const user = await User.create({ username: 'admin1', email: 'admin1@example.com', password: 'clave123', role: 'admin' });
+    const user = await User.create({username: 'admin1', email: 'admin1@example.com', password: 'clave123', role: 'admin'});
     const req = crearRequestFalso(tokenPara(user.id));
     const res = crearResponseFalso();
     const next = vi.fn();
@@ -88,19 +89,19 @@ describe('middleware de autenticación', () => {
   });
 
   it('auth.admin rechaza a un empleado (no es admin)', async () => {
-    const user = await User.create({ username: 'empleado2', email: 'empleado2@example.com', password: 'clave123', role: 'empleado' });
+    const user = await User.create({username: 'empleado2', email: 'empleado2@example.com', password: 'clave123', role: 'empleado'});
     const req = crearRequestFalso(tokenPara(user.id));
     const res = crearResponseFalso();
     const next = vi.fn();
 
     await auth.admin(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('auth.admin deja pasar a un admin', async () => {
-    const user = await User.create({ username: 'admin2', email: 'admin2@example.com', password: 'clave123', role: 'admin' });
+    const user = await User.create({username: 'admin2', email: 'admin2@example.com', password: 'clave123', role: 'admin'});
     const req = crearRequestFalso(tokenPara(user.id));
     const res = crearResponseFalso();
     const next = vi.fn();

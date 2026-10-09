@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
-import { Op, Transaction } from 'sequelize';
+import {Request, Response} from 'express';
+import {Op, Transaction} from 'sequelize';
 import PDFDocument from 'pdfkit';
-import { sequelize } from '../config/database';
+import {sequelize} from '../config/database';
 import Reserva from '../models/Reserva';
 import Habitacion from '../models/Habitacion';
 import CategoriaHabitacion from '../models/categoriaHabitacion';
@@ -10,7 +10,7 @@ import User from '../models/User';
 import ReservaServicio from '../models/ReservaServicio';
 import Cupo from '../models/Cupo';
 import Servicio from '../models/Servicio';
-import { detalleError } from '../utils/errorDetalle';
+import {detalleError, estadoDeError} from '../utils/errorDetalle';
 
 interface CrearReservaBody {
   fechaInicio: string;
@@ -38,19 +38,16 @@ interface ListarReservasQuery {
 
 // Reutilizado por crear/actualizar/listar para comprobar solapamiento de fechas.
 const condicionSolapamiento = (fechaInicio: string, fechaFin: string) => [
-  { fechaInicio: { [Op.between]: [fechaInicio, fechaFin] } },
-  { fechaFin: { [Op.between]: [fechaInicio, fechaFin] } },
+  {fechaInicio: {[Op.between]: [fechaInicio, fechaFin]}},
+  {fechaFin: {[Op.between]: [fechaInicio, fechaFin]}},
   {
-    [Op.and]: [
-      { fechaInicio: { [Op.lte]: fechaInicio } },
-      { fechaFin: { [Op.gte]: fechaFin } }
-    ]
+    [Op.and]: [{fechaInicio: {[Op.lte]: fechaInicio}}, {fechaFin: {[Op.gte]: fechaFin}}]
   }
 ];
 
 // Resuelve el id de Huesped asociado a la cuenta autenticada (req.user.id es el id de User).
 const resolverMiHuespedId = async (userId: number, t?: Transaction): Promise<number | null> => {
-  const huesped = await Huesped.findOne({ where: { userId }, transaction: t });
+  const huesped = await Huesped.findOne({where: {userId}, transaction: t});
   return huesped ? huesped.id : null;
 };
 
@@ -61,33 +58,42 @@ export const calcularNoches = (fechaInicio: string, fechaFin: string): number =>
   return Math.round((fin.getTime() - inicio.getTime()) / msPorDia);
 };
 
-
-const buscarSolapamiento = (
-  habitacionId: number,
-  fechaInicio: string,
-  fechaFin: string,
-  excludeId?: number,
-  transaction?: Transaction
-) => {
+const buscarSolapamiento = (habitacionId: number, fechaInicio: string, fechaFin: string, excludeId?: number, transaction?: Transaction) => {
   return Reserva.findOne({
     where: {
       habitacionId,
-      estado: { [Op.ne]: 'cancelada' },
-      ...(excludeId !== undefined && { id: { [Op.ne]: excludeId } }),
+      estado: {[Op.ne]: 'cancelada'},
+      ...(excludeId !== undefined && {id: {[Op.ne]: excludeId}}),
       [Op.or]: condicionSolapamiento(fechaInicio, fechaFin)
     },
     transaction
   });
 };
 
-export const crearReserva = async (
-  req: Request<{}, {}, CrearReservaBody>,
-  res: Response
-): Promise<void | Response> => {
+export const crearReserva = async (req: Request<{}, {}, CrearReservaBody>, res: Response): Promise<void | Response> => {
   const t: Transaction = await sequelize.transaction();
 
   try {
-    const { fechaInicio, fechaFin, huespedId, habitacionId, montoTotal } = req.body;
+    const {fechaInicio, fechaFin, huespedId, habitacionId, montoTotal} = req.body;
+
+    // Se valida antes de consultar: con un campo faltante, buscarSolapamiento
+    // revienta con "WHERE parameter ... undefined" (un 500 genérico) antes de
+    // que los validadores del modelo lleguen a ejecutarse.
+    if (!fechaInicio || !fechaFin || !huespedId || !habitacionId) {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'Datos incompletos',
+        mensaje: 'fechaInicio, fechaFin, huespedId y habitacionId son obligatorios.'
+      });
+    }
+    if (calcularNoches(fechaInicio, fechaFin) <= 0) {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'El rango de fechas es inválido',
+        mensaje: 'La fecha de fin debe ser posterior a la fecha de inicio.'
+      });
+    }
+
     const reservaExistente = await buscarSolapamiento(habitacionId, fechaInicio, fechaFin, undefined, t);
 
     if (reservaExistente) {
@@ -98,14 +104,17 @@ export const crearReserva = async (
       });
     }
 
-    const nuevaReserva = await Reserva.create({
-      fechaInicio,
-      fechaFin,
-      huespedId,
-      habitacionId,
-      montoTotal,
-      estado: 'pendiente'
-    }, { transaction: t });
+    const nuevaReserva = await Reserva.create(
+      {
+        fechaInicio,
+        fechaFin,
+        huespedId,
+        habitacionId,
+        montoTotal,
+        estado: 'pendiente'
+      },
+      {transaction: t}
+    );
 
     await t.commit();
 
@@ -113,22 +122,18 @@ export const crearReserva = async (
       mensaje: '¡Reserva realizada con éxito!',
       reserva: nuevaReserva
     });
-
   } catch (error: any) {
     await t.rollback();
-    res.status(500).json({
+    res.status(estadoDeError(error)).json({
       error: 'Error al procesar la reserva',
       detalle: detalleError(error)
     });
   }
 };
 
-export const listarReservas = async (
-  req: Request<{}, {}, {}, ListarReservasQuery>,
-  res: Response
-): Promise<void> => {
+export const listarReservas = async (req: Request<{}, {}, {}, ListarReservasQuery>, res: Response): Promise<void> => {
   try {
-    const { huespedId, habitacionId, estado, fechaInicio, fechaFin } = req.query;
+    const {huespedId, habitacionId, estado, fechaInicio, fechaFin} = req.query;
     const where: Record<string, unknown> = {};
     if (huespedId) where.huespedId = parseInt(huespedId, 10);
     if (habitacionId) where.habitacionId = parseInt(habitacionId, 10);
@@ -139,59 +144,47 @@ export const listarReservas = async (
 
     const reservas = await Reserva.findAll({
       where,
-      include: [{ model: Habitacion, as: 'habitacion' }]
+      include: [{model: Habitacion, as: 'habitacion'}]
     });
     res.json(reservas);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar las reservas', detalle: detalleError(error) });
+    res.status(500).json({error: 'Error al listar las reservas', detalle: detalleError(error)});
   }
 };
 
-export const obtenerReserva = async (
-  req: Request<{ id: string }>,
-  res: Response
-): Promise<void> => {
+export const obtenerReserva = async (req: Request<{id: string}>, res: Response): Promise<void> => {
   try {
     const reserva = await Reserva.findByPk(req.params.id, {
-      include: [{ model: Habitacion, as: 'habitacion' }]
+      include: [{model: Habitacion, as: 'habitacion'}]
     });
     if (!reserva) {
-      res.status(404).json({ error: 'Reserva no encontrada' });
+      res.status(404).json({error: 'Reserva no encontrada'});
       return;
     }
     res.json(reserva);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al obtener la reserva', detalle: detalleError(error) });
+    res.status(500).json({error: 'Error al obtener la reserva', detalle: detalleError(error)});
   }
 };
 
-export const actualizarReserva = async (
-  req: Request<{ id: string }, {}, ActualizarReservaBody>,
-  res: Response
-): Promise<void | Response> => {
+export const actualizarReserva = async (req: Request<{id: string}, {}, ActualizarReservaBody>, res: Response): Promise<void | Response> => {
   const t: Transaction = await sequelize.transaction();
 
   try {
-    const reserva = await Reserva.findByPk(req.params.id, { transaction: t });
+    const reserva = await Reserva.findByPk(req.params.id, {transaction: t});
     if (!reserva) {
       await t.rollback();
-      return res.status(404).json({ error: 'Reserva no encontrada' });
+      return res.status(404).json({error: 'Reserva no encontrada'});
     }
 
-    const { fechaInicio, fechaFin, habitacionId, montoTotal, estado } = req.body;
+    const {fechaInicio, fechaFin, habitacionId, montoTotal, estado} = req.body;
     const nuevaFechaInicio = fechaInicio ?? reserva.fechaInicio;
     const nuevaFechaFin = fechaFin ?? reserva.fechaFin;
     const nuevaHabitacionId = habitacionId ?? reserva.habitacionId;
 
     // Si cambian fechas y/o habitación, re-chequeamos solapamiento excluyendo esta misma reserva
     if (fechaInicio !== undefined || fechaFin !== undefined || habitacionId !== undefined) {
-      const reservaSolapada = await buscarSolapamiento(
-        nuevaHabitacionId,
-        nuevaFechaInicio,
-        nuevaFechaFin,
-        reserva.id,
-        t
-      );
+      const reservaSolapada = await buscarSolapamiento(nuevaHabitacionId, nuevaFechaInicio, nuevaFechaFin, reserva.id, t);
       if (reservaSolapada) {
         await t.rollback();
         return res.status(400).json({
@@ -201,36 +194,36 @@ export const actualizarReserva = async (
       }
     }
 
-    await reserva.update({
-      fechaInicio: nuevaFechaInicio,
-      fechaFin: nuevaFechaFin,
-      habitacionId: nuevaHabitacionId,
-      ...(montoTotal !== undefined && { montoTotal }),
-      ...(estado !== undefined && { estado })
-    }, { transaction: t });
+    await reserva.update(
+      {
+        fechaInicio: nuevaFechaInicio,
+        fechaFin: nuevaFechaFin,
+        habitacionId: nuevaHabitacionId,
+        ...(montoTotal !== undefined && {montoTotal}),
+        ...(estado !== undefined && {estado})
+      },
+      {transaction: t}
+    );
 
     await t.commit();
     res.json(reserva);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al actualizar la reserva', detalle: detalleError(error) });
+    res.status(400).json({error: 'Error al actualizar la reserva', detalle: detalleError(error)});
   }
 };
 
-export const eliminarReserva = async (
-  req: Request<{ id: string }>,
-  res: Response
-): Promise<void> => {
+export const eliminarReserva = async (req: Request<{id: string}>, res: Response): Promise<void> => {
   try {
     const reserva = await Reserva.findByPk(req.params.id);
     if (!reserva) {
-      res.status(404).json({ error: 'Reserva no encontrada' });
+      res.status(404).json({error: 'Reserva no encontrada'});
       return;
     }
     await reserva.destroy();
     res.status(204).send();
   } catch (error: any) {
-    res.status(400).json({ error: 'Error al eliminar la reserva', detalle: detalleError(error) });
+    res.status(400).json({error: 'Error al eliminar la reserva', detalle: detalleError(error)});
   }
 };
 
@@ -242,20 +235,26 @@ interface CrearReservaPropiaBody {
   fechaFin: string;
 }
 
-export const crearReservaPropia = async (
-  req: Request<{}, {}, CrearReservaPropiaBody>,
-  res: Response
-): Promise<void | Response> => {
+export const crearReservaPropia = async (req: Request<{}, {}, CrearReservaPropiaBody>, res: Response): Promise<void | Response> => {
   const t: Transaction = await sequelize.transaction();
 
   try {
     const huespedId = await resolverMiHuespedId(req.user!.id, t);
     if (!huespedId) {
       await t.rollback();
-      return res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+      return res.status(404).json({error: 'No existe un perfil de huésped asociado a esta cuenta'});
     }
 
-    const { habitacionId, fechaInicio, fechaFin } = req.body;
+    const {habitacionId, fechaInicio, fechaFin} = req.body;
+    // Sin esto, fechas faltantes daban NaN noches (NaN <= 0 es false, así que
+    // pasaba el chequeo) y terminaba en un 404 "Habitación no encontrada" engañoso.
+    if (!habitacionId || !fechaInicio || !fechaFin) {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'Datos incompletos',
+        mensaje: 'habitacionId, fechaInicio y fechaFin son obligatorios.'
+      });
+    }
     const noches = calcularNoches(fechaInicio, fechaFin);
     if (noches <= 0) {
       await t.rollback();
@@ -266,12 +265,12 @@ export const crearReservaPropia = async (
     }
 
     const habitacion = await Habitacion.findByPk(habitacionId, {
-      include: [{ model: CategoriaHabitacion, as: 'categoria' }],
+      include: [{model: CategoriaHabitacion, as: 'categoria'}],
       transaction: t
     });
     if (!habitacion || !habitacion.categoria) {
       await t.rollback();
-      return res.status(404).json({ error: 'Habitación no encontrada' });
+      return res.status(404).json({error: 'Habitación no encontrada'});
     }
 
     const reservaExistente = await buscarSolapamiento(habitacionId, fechaInicio, fechaFin, undefined, t);
@@ -284,15 +283,23 @@ export const crearReservaPropia = async (
     }
 
     const montoTotal = noches * habitacion.categoria.precioNoche;
-    const nuevaReserva = await Reserva.create({
-      fechaInicio, fechaFin, huespedId, habitacionId, montoTotal, estado: 'pendiente'
-    }, { transaction: t });
+    const nuevaReserva = await Reserva.create(
+      {
+        fechaInicio,
+        fechaFin,
+        huespedId,
+        habitacionId,
+        montoTotal,
+        estado: 'pendiente'
+      },
+      {transaction: t}
+    );
 
     await t.commit();
-    res.status(201).json({ mensaje: '¡Reserva realizada con éxito!', reserva: nuevaReserva });
+    res.status(201).json({mensaje: '¡Reserva realizada con éxito!', reserva: nuevaReserva});
   } catch (error: any) {
     await t.rollback();
-    res.status(500).json({ error: 'Error al procesar la reserva', detalle: detalleError(error) });
+    res.status(estadoDeError(error)).json({error: 'Error al procesar la reserva', detalle: detalleError(error)});
   }
 };
 
@@ -300,39 +307,40 @@ export const listarMisReservas = async (req: Request, res: Response): Promise<vo
   try {
     const huespedId = await resolverMiHuespedId(req.user!.id);
     if (!huespedId) {
-      res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+      res.status(404).json({error: 'No existe un perfil de huésped asociado a esta cuenta'});
       return;
     }
     const reservas = await Reserva.findAll({
-      where: { huespedId },
+      where: {huespedId},
       include: [
-        { model: Habitacion, as: 'habitacion', include: [{ model: CategoriaHabitacion, as: 'categoria' }] },
-        { model: ReservaServicio, as: 'serviciosConsumidos', include: [{ model: Cupo, as: 'cupo', include: [{ model: Servicio, as: 'servicio' }] }] }
+        {model: Habitacion, as: 'habitacion', include: [{model: CategoriaHabitacion, as: 'categoria'}]},
+        {
+          model: ReservaServicio,
+          as: 'serviciosConsumidos',
+          include: [{model: Cupo, as: 'cupo', include: [{model: Servicio, as: 'servicio'}]}]
+        }
       ],
       order: [['fechaInicio', 'DESC']]
     });
     res.json(reservas);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al listar tus reservas', detalle: detalleError(error) });
+    res.status(500).json({error: 'Error al listar tus reservas', detalle: detalleError(error)});
   }
 };
 
-export const cancelarReservaPropia = async (
-  req: Request<{ id: string }>,
-  res: Response
-): Promise<void | Response> => {
+export const cancelarReservaPropia = async (req: Request<{id: string}>, res: Response): Promise<void | Response> => {
   const t: Transaction = await sequelize.transaction();
 
   try {
     const huespedId = await resolverMiHuespedId(req.user!.id, t);
     if (!huespedId) {
       await t.rollback();
-      return res.status(404).json({ error: 'No existe un perfil de huésped asociado a esta cuenta' });
+      return res.status(404).json({error: 'No existe un perfil de huésped asociado a esta cuenta'});
     }
-    const reserva = await Reserva.findByPk(req.params.id, { transaction: t });
+    const reserva = await Reserva.findByPk(req.params.id, {transaction: t});
     if (!reserva || reserva.huespedId !== huespedId) {
       await t.rollback();
-      return res.status(404).json({ error: 'Reserva no encontrada' });
+      return res.status(404).json({error: 'Reserva no encontrada'});
     }
     if (reserva.estado !== 'pendiente') {
       await t.rollback();
@@ -341,28 +349,25 @@ export const cancelarReservaPropia = async (
         mensaje: `No se puede cancelar una reserva en estado "${reserva.estado}".`
       });
     }
-    await reserva.update({ estado: 'cancelada' }, { transaction: t });
+    await reserva.update({estado: 'cancelada'}, {transaction: t});
     await t.commit();
-    res.json({ mensaje: 'Reserva cancelada correctamente', reserva });
+    res.json({mensaje: 'Reserva cancelada correctamente', reserva});
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al cancelar la reserva', detalle: detalleError(error) });
+    res.status(400).json({error: 'Error al cancelar la reserva', detalle: detalleError(error)});
   }
 };
 
 // === CHECK-IN / CHECK-OUT / COMPROBANTE ===
 
-export const realizarCheckIn = async (
-  req: Request<{ id: string }>,
-  res: Response
-): Promise<void | Response> => {
+export const realizarCheckIn = async (req: Request<{id: string}>, res: Response): Promise<void | Response> => {
   const t: Transaction = await sequelize.transaction();
 
   try {
-    const reserva = await Reserva.findByPk(req.params.id, { transaction: t });
+    const reserva = await Reserva.findByPk(req.params.id, {transaction: t});
     if (!reserva) {
       await t.rollback();
-      return res.status(404).json({ error: 'Reserva no encontrada' });
+      return res.status(404).json({error: 'Reserva no encontrada'});
     }
     if (reserva.estado !== 'pendiente') {
       await t.rollback();
@@ -372,40 +377,37 @@ export const realizarCheckIn = async (
       });
     }
 
-    const habitacion = await Habitacion.findByPk(reserva.habitacionId, { transaction: t });
+    const habitacion = await Habitacion.findByPk(reserva.habitacionId, {transaction: t});
     if (!habitacion) {
       await t.rollback();
-      return res.status(404).json({ error: 'Habitación no encontrada' });
+      return res.status(404).json({error: 'Habitación no encontrada'});
     }
 
-    await reserva.update({ estado: 'check-in' }, { transaction: t });
-    await habitacion.update({ estadoDisponibilidad: 'ocupada' }, { transaction: t });
+    await reserva.update({estado: 'check-in'}, {transaction: t});
+    await habitacion.update({estadoDisponibilidad: 'ocupada'}, {transaction: t});
 
     await t.commit();
-    res.json({ mensaje: 'Check-in realizado con éxito', reserva });
+    res.json({mensaje: 'Check-in realizado con éxito', reserva});
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al procesar el check-in', detalle: detalleError(error) });
+    res.status(400).json({error: 'Error al procesar el check-in', detalle: detalleError(error)});
   }
 };
 
 const COMPROBANTE_INCLUDES = [
-  { model: Huesped, as: 'huesped', include: [{ model: User, as: 'usuario', attributes: { exclude: ['password'] } }] },
-  { model: Habitacion, as: 'habitacion' },
-  { model: ReservaServicio, as: 'serviciosConsumidos', include: [{ model: Cupo, as: 'cupo', include: [{ model: Servicio, as: 'servicio' }] }] }
+  {model: Huesped, as: 'huesped', include: [{model: User, as: 'usuario', attributes: {exclude: ['password']}}]},
+  {model: Habitacion, as: 'habitacion'},
+  {model: ReservaServicio, as: 'serviciosConsumidos', include: [{model: Cupo, as: 'cupo', include: [{model: Servicio, as: 'servicio'}]}]}
 ];
 
-export const realizarCheckOut = async (
-  req: Request<{ id: string }>,
-  res: Response
-): Promise<void | Response> => {
+export const realizarCheckOut = async (req: Request<{id: string}>, res: Response): Promise<void | Response> => {
   const t: Transaction = await sequelize.transaction();
 
   try {
-    const reserva = await Reserva.findByPk(req.params.id, { transaction: t });
+    const reserva = await Reserva.findByPk(req.params.id, {transaction: t});
     if (!reserva) {
       await t.rollback();
-      return res.status(404).json({ error: 'Reserva no encontrada' });
+      return res.status(404).json({error: 'Reserva no encontrada'});
     }
     if (reserva.estado !== 'check-in') {
       await t.rollback();
@@ -415,46 +417,43 @@ export const realizarCheckOut = async (
       });
     }
 
-    const habitacion = await Habitacion.findByPk(reserva.habitacionId, { transaction: t });
+    const habitacion = await Habitacion.findByPk(reserva.habitacionId, {transaction: t});
     if (!habitacion) {
       await t.rollback();
-      return res.status(404).json({ error: 'Habitación no encontrada' });
+      return res.status(404).json({error: 'Habitación no encontrada'});
     }
 
-    await reserva.update({ estado: 'check-out' }, { transaction: t });
-    await habitacion.update({ estadoDisponibilidad: 'disponible' }, { transaction: t });
+    await reserva.update({estado: 'check-out'}, {transaction: t});
+    await habitacion.update({estadoDisponibilidad: 'disponible'}, {transaction: t});
 
     await t.commit();
 
-    const reservaCompleta = await Reserva.findByPk(req.params.id, { include: COMPROBANTE_INCLUDES });
+    const reservaCompleta = await Reserva.findByPk(req.params.id, {include: COMPROBANTE_INCLUDES});
     if (!reservaCompleta) {
-      res.status(404).json({ error: 'Reserva no encontrada' });
+      res.status(404).json({error: 'Reserva no encontrada'});
       return;
     }
     generarComprobantePDF(reservaCompleta, res);
   } catch (error: any) {
     await t.rollback();
-    res.status(400).json({ error: 'Error al procesar el check-out', detalle: detalleError(error) });
+    res.status(400).json({error: 'Error al procesar el check-out', detalle: detalleError(error)});
   }
 };
 
-export const descargarComprobante = async (
-  req: Request<{ id: string }>,
-  res: Response
-): Promise<void> => {
+export const descargarComprobante = async (req: Request<{id: string}>, res: Response): Promise<void> => {
   try {
-    const reserva = await Reserva.findByPk(req.params.id, { include: COMPROBANTE_INCLUDES });
+    const reserva = await Reserva.findByPk(req.params.id, {include: COMPROBANTE_INCLUDES});
     if (!reserva) {
-      res.status(404).json({ error: 'Reserva no encontrada' });
+      res.status(404).json({error: 'Reserva no encontrada'});
       return;
     }
     if (reserva.estado !== 'check-out') {
-      res.status(400).json({ error: 'La reserva aún no registra un check-out.' });
+      res.status(400).json({error: 'La reserva aún no registra un check-out.'});
       return;
     }
     generarComprobantePDF(reserva, res);
   } catch (error: any) {
-    res.status(500).json({ error: 'Error al generar el comprobante', detalle: detalleError(error) });
+    res.status(500).json({error: 'Error al generar el comprobante', detalle: detalleError(error)});
   }
 };
 
@@ -469,20 +468,21 @@ function generarComprobantePDF(reserva: Reserva, res: Response): void {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="comprobante-reserva-${reserva.id}.pdf"`);
 
-  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  const doc = new PDFDocument({size: 'A4', margin: 50});
   doc.pipe(res);
 
   // Header
-  doc.fontSize(18).text('Hotel DSW', { align: 'center' });
-  doc.fontSize(12).text('Comprobante de Pago', { align: 'center' });
+  doc.fontSize(18).text('Hotel DSW', {align: 'center'});
+  doc.fontSize(12).text('Comprobante de Pago', {align: 'center'});
   doc.moveDown();
-  doc.fontSize(10)
-    .text(`Comprobante N°: ${reserva.id}`, { align: 'right' })
-    .text(`Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`, { align: 'right' });
+  doc
+    .fontSize(10)
+    .text(`Comprobante N°: ${reserva.id}`, {align: 'right'})
+    .text(`Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`, {align: 'right'});
   doc.moveDown();
 
   // Datos de la reserva
-  doc.fontSize(12).text('Datos de la reserva', { underline: true });
+  doc.fontSize(12).text('Datos de la reserva', {underline: true});
   doc.fontSize(10).moveDown(0.5);
   doc.text(`Huésped: ${usuario?.username ?? reserva.huespedId}`);
   doc.text(`Habitación: N° ${habitacion?.numero ?? reserva.habitacionId}${habitacion ? ` (Piso ${habitacion.piso})` : ''}`);
@@ -495,7 +495,7 @@ function generarComprobantePDF(reserva: Reserva, res: Response): void {
   const colPrecio = 350;
   const colSubtotal = 450;
 
-  doc.fontSize(12).text('Detalle de consumos', { underline: true });
+  doc.fontSize(12).text('Detalle de consumos', {underline: true});
   doc.moveDown(0.5);
   doc.fontSize(10);
   const headerY = doc.y;
@@ -532,10 +532,10 @@ function generarComprobantePDF(reserva: Reserva, res: Response): void {
   doc.moveDown(0.5);
   doc.moveTo(colConcepto, doc.y).lineTo(550, doc.y).stroke();
   doc.moveDown(0.5);
-  doc.fontSize(12).text(`Total: $ ${total.toFixed(2)}`, { align: 'right' });
+  doc.fontSize(12).text(`Total: $ ${total.toFixed(2)}`, {align: 'right'});
 
   doc.moveDown(2);
-  doc.fontSize(10).text('Gracias por su estadía.', { align: 'center' });
+  doc.fontSize(10).text('Gracias por su estadía.', {align: 'center'});
 
   doc.end();
 }

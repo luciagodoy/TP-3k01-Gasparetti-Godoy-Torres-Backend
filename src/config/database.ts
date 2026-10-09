@@ -1,6 +1,7 @@
-import { Sequelize } from 'sequelize';
+import {Sequelize} from 'sequelize';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import mysql2 from 'mysql2';
 
 dotenv.config();
 
@@ -46,21 +47,20 @@ if (useSsl && !ca) {
   );
 }
 
-export const sequelize = process.env.NODE_ENV === 'test'
-  ? new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false })
-  : new Sequelize(
-    process.env.DB_NAME || 'DSW-hoteleria',
-    process.env.DB_USER || 'root',
-    process.env.DB_PASSWORD || '',
-    {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
-      dialect: 'mysql',
-      logging: false,
-      dialectOptions: useSsl
-        ? {
-            ssl: sslOptions
-          }
-        : {}
-    }
-  );
+export const sequelize =
+  process.env.NODE_ENV === 'test'
+    ? new Sequelize({dialect: 'sqlite', storage: ':memory:', logging: false})
+    : new Sequelize(process.env.DB_NAME || 'DSW-hoteleria', process.env.DB_USER || 'root', process.env.DB_PASSWORD || '', {
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
+        dialect: 'mysql',
+        // Sequelize carga el driver con un require dinámico que el bundler de
+        // Vercel no detecta; pasarlo explícito evita "Please install mysql2".
+        dialectModule: mysql2,
+        logging: false,
+        dialectOptions: useSsl
+          ? {
+              ssl: sslOptions
+            }
+          : {}
+      });

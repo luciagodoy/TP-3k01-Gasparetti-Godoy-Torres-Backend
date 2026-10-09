@@ -1,0 +1,12 @@
+# Lo que no debe subirse en un "vercel deploy" desde la máquina local.
+# Los secretos (.env, el CA de Aiven) van como variables de entorno del proyecto.
+.env
+certs/
+dist/
+node_modules/
+*.log
+*.pid
+*.mwb
+*.mwb.bak
+COMO-EJECUTAR.md
+docs/agents/

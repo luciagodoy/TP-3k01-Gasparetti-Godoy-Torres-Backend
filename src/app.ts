@@ -4,6 +4,10 @@ import helmet from 'helmet';
 import masterRouter from './routes';
 import healthRouter from './routes/healthRoutes';
 import {apiLimiter} from './middleware/rateLimit';
+// Las asociaciones Categoría <-> Habitación viven en models/index. Se importan
+// acá y no sólo en index.ts porque en Vercel el punto de entrada es este
+// archivo: index.ts (y su app.listen) no se ejecuta nunca.
+import './models/index';
 
 const app = express();
 

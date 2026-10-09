@@ -6,3 +6,5 @@ dist/
 *.log
 COMO-EJECUTAR.md
 docs/agents/
+graph.html
+GRAPH_REPORT.md
