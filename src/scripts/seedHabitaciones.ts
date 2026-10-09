@@ -49,7 +49,6 @@ const CATEGORIAS = [
   }
 ];
 
-// Ya existe una "Presidential Suite" cargada por el equipo (sin fotos); solo le sumamos imágenes y una habitación.
 const PRESIDENTIAL = {
   denominacion: 'Presidential Suite',
   imagenesUrl: fotos(['hotel-presidential-1', 'hotel-presidential-2', 'hotel-presidential-3']),
@@ -85,7 +84,6 @@ async function main() {
     }
   }
 
-  // Presidential Suite: solo le agregamos fotos si todavía no tiene, y sumamos su habitación.
   const presidential = await CategoriaHabitacion.findOne({ where: { denominacion: PRESIDENTIAL.denominacion } });
   if (presidential) {
     const imagenesActuales = presidential.getDataValue('imagenesUrl') as string[];

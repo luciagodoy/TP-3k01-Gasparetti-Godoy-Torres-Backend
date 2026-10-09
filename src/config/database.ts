@@ -6,12 +6,6 @@ import mysql2 from 'mysql2';
 dotenv.config();
 
 const useSsl = process.env.DB_SSL === 'true';
-
-// El CA puede venir de dos lados:
-//  - DB_CA_CERT: el contenido PEM directo. Es lo que sirve en un contenedor o
-//    en una plataforma (Render, Railway...), donde certs/ no existe porque está
-//    en .gitignore y por lo tanto nunca llega a la imagen.
-//  - DB_CA_PATH: una ruta a archivo, cómodo para desarrollo local.
 const cargarCA = (): string | Buffer | undefined => {
   if (process.env.DB_CA_CERT) {
     // Las plataformas suelen guardar los saltos de línea como "\n" literal
@@ -27,13 +21,7 @@ const cargarCA = (): string | Buffer | undefined => {
   }
   return undefined;
 };
-
 const ca = useSsl ? cargarCA() : undefined;
-
-// Antes rejectUnauthorized era siempre false: el CA se cargaba pero nunca se
-// usaba, porque con false no se valida la cadena de certificados. La conexión
-// iba cifrada pero sin autenticar al servidor, así que cualquiera en el medio
-// podía presentar su propio certificado. Ahora, si hay CA, se valida.
 const sslOptions: Record<string, unknown> = {
   require: true,
   rejectUnauthorized: Boolean(ca),
@@ -54,8 +42,6 @@ export const sequelize =
         host: process.env.DB_HOST || 'localhost',
         port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
         dialect: 'mysql',
-        // Sequelize carga el driver con un require dinámico que el bundler de
-        // Vercel no detecta; pasarlo explícito evita "Please install mysql2".
         dialectModule: mysql2,
         logging: false,
         dialectOptions: useSsl

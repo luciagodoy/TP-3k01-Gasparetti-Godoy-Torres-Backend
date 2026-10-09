@@ -4,7 +4,7 @@ import Servicio from '../models/Servicio';
 import { detalleError } from '../utils/errorDetalle';
 
 // disponibles NUNCA se acepta del cliente: lo gestiona el servidor para mantener el invariante
-// 0 <= disponibles <= cantidad (ver también controladorReservaServicio.ts, que lo decrementa/incrementa).
+// 0 <= disponibles <= cantidad.
 interface CrearCupoBody {
   cantidad: number;
   servicioId: number;

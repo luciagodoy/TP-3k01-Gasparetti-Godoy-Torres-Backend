@@ -246,8 +246,6 @@ export const crearReservaPropia = async (req: Request<{}, {}, CrearReservaPropia
     }
 
     const {habitacionId, fechaInicio, fechaFin} = req.body;
-    // Sin esto, fechas faltantes daban NaN noches (NaN <= 0 es false, así que
-    // pasaba el chequeo) y terminaba en un 404 "Habitación no encontrada" engañoso.
     if (!habitacionId || !fechaInicio || !fechaFin) {
       await t.rollback();
       return res.status(400).json({

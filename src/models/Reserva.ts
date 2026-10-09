@@ -4,7 +4,7 @@ import Huesped from './Huesped';
 import Habitacion from './Habitacion';
 import type ReservaServicio from './ReservaServicio';
 
-//   define atributos de la Reserva
+
 interface ReservaAttributes {
   id: number;
   fechaInicio: string; // se maneja como string 'YYYY-MM-DD'
@@ -15,10 +15,7 @@ interface ReservaAttributes {
   habitacionId?: number; 
 }
 
-//  Interfaz para la creación 
 interface ReservaCreationAttributes extends Optional<ReservaAttributes, 'id'> {}
-
-// Extensión de la clase Model
 class Reserva 
   extends Model<ReservaAttributes, ReservaCreationAttributes> 
   implements ReservaAttributes 
@@ -30,17 +27,14 @@ class Reserva
   declare montoTotal: number;
   declare huespedId: number;
   declare habitacionId: number;
-
-  // Timestamps automáticos de Sequelize
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
-
   declare huesped?: Huesped;
   declare habitacion?: Habitacion;
   declare serviciosConsumidos?: ReservaServicio[];
 }
 
-// Inicialización del modelo
+
 Reserva.init({
   id: {
     type: DataTypes.INTEGER,

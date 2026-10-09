@@ -33,10 +33,6 @@ interface ListarReservaServicioQuery {
 }
 
 const INCLUDE_CUPO = [{ model: Cupo, as: 'cupo', include: [{ model: Servicio, as: 'servicio' }] }];
-
-// Lógica transaccional compartida entre el alta administrativa (precio confiado del cliente)
-// y el alta de autoservicio del huésped (precio resuelto en el servidor). No se exporta:
-// solo la usan los dos handlers públicos de este archivo.
 const registrarConsumoServicio = async (
   reservaId: number,
   cupoId: number,
@@ -87,10 +83,6 @@ export const crearReservaServicio = async (
     res.status(400).json({ error: 'Error al registrar el consumo del servicio', detalle: detalleError(error) });
   }
 };
-
-// Variante de autoservicio: el huésped solo elige cupo y cantidad; el precio SIEMPRE se
-// resuelve en el servidor (nunca se confía en un precioUnitario enviado por el cliente,
-// a diferencia del endpoint administrativo de arriba), y se valida que la reserva sea propia.
 export const crearReservaServicioPropio = async (
   req: Request<{}, {}, CrearReservaServicioPropioBody>,
   res: Response

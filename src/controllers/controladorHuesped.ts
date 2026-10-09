@@ -7,9 +7,9 @@ import Ciudad from '../models/Ciudad';
 import Provincia from '../models/Provincia';
 import { detalleError } from '../utils/errorDetalle';
 
-// estructura exacta a recibir en el Body de la petición
+
 interface RegistrarHuespedBody {
-  username: string; // Agregado ya que el modelo User lo requiere como obligatorio (allowNull: false)
+  username: string; 
   email: string;
   password: string;
   telefono: string | null;
@@ -18,7 +18,7 @@ interface RegistrarHuespedBody {
   pais?: string; // Opcional porque tiene un defaultValue: 'Argentina' en el modelo
 }
 
-// Datos propios del perfil de Huesped (no incluye credenciales de User)
+
 interface ActualizarHuespedBody {
   telefono?: string | null;
   documentoIdentidad?: string;
@@ -54,8 +54,6 @@ export const registrarHuesped = async (
       pais: pais || 'Argentina',
       userId: nuevoUsuario.id
     }, { transaction: t });
-
-    // impactamos la base de datos
     await t.commit();
 
     res.status(201).json({ mensaje: 'Huésped creado con éxito' });
@@ -71,8 +69,6 @@ export const registrarHuesped = async (
 
 export const listarHuespedes = async (_req: Request, res: Response): Promise<void> => {
   try {
-    // Solo cuentas que siguen siendo huésped: si alguien fue promovido a
-    // empleado/admin, su perfil de huésped viejo no debe listarse acá.
     const huespedes = await Huesped.findAll({
       include: [
         { model: User, as: 'usuario', attributes: { exclude: ['password'] }, where: { role: 'huesped' } },

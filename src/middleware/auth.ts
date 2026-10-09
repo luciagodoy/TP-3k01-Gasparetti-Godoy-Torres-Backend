@@ -22,10 +22,10 @@ declare global {
 type Rol = 'huesped' | 'empleado' | 'admin';
 
 // Factory: exige un token válido y, si se pasan roles, que el usuario tenga uno de ellos.
-// Sin roles => cualquier usuario autenticado (equivalente al viejo "simple").
+// Sin roles => cualquier usuario autenticado.
 //
-// 401 y 403 se separan a propósito: 401 = "no sé quién sos" (sin token, token
-// inválido o usuario borrado) y 403 = "sé quién sos, pero tu rol no alcanza".
+// 401 y 403 se separan a propósito: 401 = sin token, token inválido o usuario borrado 
+//  403 = con token, pero sin rol necesario.
 // El front cierra la sesión ante un 401; con un 403 la sesión sigue siendo
 // válida y sólo corresponde mostrar el error.
 const requireRole = (...rolesPermitidos: Rol[]) => {
@@ -35,11 +35,8 @@ const requireRole = (...rolesPermitidos: Rol[]) => {
     try {
       const authHeader = req.header('Authorization');
       if (!authHeader) throw new Error();
-
       token = authHeader.replace('Bearer ', '');
       const decoded = jwt.verify(token, getJwtSecret()) as DecodedToken;
-
-      // Buscamos el usuario en MySQL por su ID primario
       user = await User.findByPk(decoded.id);
       if (!user) throw new Error();
     } catch (e) {

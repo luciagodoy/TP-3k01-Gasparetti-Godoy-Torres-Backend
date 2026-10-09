@@ -2,7 +2,6 @@ import { Model, DataTypes, Optional } from 'sequelize';
 import { sequelize } from '../config/database';
 import type CategoriaHabitacion from './categoriaHabitacion';
 
-// 1. Interfaz del modelo
 interface HabitacionAttributes {
   id: number;
   numero: number;
@@ -11,10 +10,7 @@ interface HabitacionAttributes {
   categoriaId: number; 
 }
 
-// 2. Interfaz para creación
 interface HabitacionCreationAttributes extends Optional<HabitacionAttributes, 'id'> {}
-
-// 3. Definición de la Clase
 class Habitacion 
   extends Model<HabitacionAttributes, HabitacionCreationAttributes> 
   implements HabitacionAttributes 
@@ -30,8 +26,6 @@ class Habitacion
 
   declare categoria?: CategoriaHabitacion;
 }
-
-// 4. Inicialización
 Habitacion.init({
   id: {
     type: DataTypes.INTEGER,

@@ -24,8 +24,7 @@ const PORT = process.env.PORT || 3000;
 // === ARRANQUE DEL SERVIODR ===
 async function iniciarServidor(): Promise<void> {
   try {
-    // Chequeo de configuración antes de escuchar: si falta JWT_SECRET preferimos
-    // no arrancar, en vez de descubrirlo recién en el primer login.
+    // Chequeo de configuración antes de escuchar
     getJwtSecret();
 
     await sequelize.authenticate();
@@ -34,8 +33,7 @@ async function iniciarServidor(): Promise<void> {
     // sync({ alter: true }) compara los modelos con las tablas y emite ALTER
     // TABLE en caliente. En desarrollo es cómodo; contra la base de producción
     // es un cambio de esquema sin revisión previa y sin forma de volver atrás.
-    // En producción sólo corre si se pide explícitamente con DB_SYNC=alter (por
-    // ejemplo, en el primer deploy, para crear las tablas).
+    // En producción sólo corre con DB_SYNC=alter .
     const sincronizarEsquema =
       process.env.NODE_ENV !== 'production' || process.env.DB_SYNC === 'alter';
 
@@ -45,12 +43,7 @@ async function iniciarServidor(): Promise<void> {
     } else {
       console.log(' Sincronización de esquema omitida (producción sin DB_SYNC=alter).');
     }
-
     await seedAdmin();
-
-    // El error de listen (p. ej. EADDRINUSE) llega de forma asíncrona y no lo
-    // agarra el try/catch: sin este handler el proceso quedaba "arrancado"
-    // según el log pero sin nadie escuchando el puerto.
     const server = app.listen(PORT, () => {
       console.log(`Servidor TypeScript corriendo en http://localhost:${PORT}`);
     });
@@ -60,8 +53,6 @@ async function iniciarServidor(): Promise<void> {
       process.exit(1);
     });
   } catch (error) {
-    // Salimos con código distinto de cero: si el arranque falla, el proceso no
-    // debe quedar "vivo pero inservible" (antes seguía corriendo sin servidor).
     console.error('Error crítico durante el arranque del servidor:', error);
     process.exit(1);
   }
