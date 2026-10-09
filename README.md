@@ -108,7 +108,8 @@ Como la gestión de usuarios (`/api/usuarios`) requiere rol `admin`, no existe u
 el primer usuario administrador a través de la API. En su lugar, el servidor revisa al arrancar
 si ya existe algún usuario con rol `admin` y, si no hay ninguno, crea uno con los valores de
 `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` (por defecto `admin` / `admin@hotel.local` /
-`admin123` si no se configuran).
+`admin123` si no se configuran). En producción no hay contraseña por defecto: si todavía no
+existe ningún admin y falta `ADMIN_PASSWORD`, el servidor no arranca.
 
 ## Niveles de acceso
 

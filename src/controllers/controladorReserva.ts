@@ -76,9 +76,6 @@ export const crearReserva = async (req: Request<{}, {}, CrearReservaBody>, res: 
   try {
     const {fechaInicio, fechaFin, huespedId, habitacionId, montoTotal} = req.body;
 
-    // Se valida antes de consultar: con un campo faltante, buscarSolapamiento
-    // revienta con "WHERE parameter ... undefined" (un 500 genérico) antes de
-    // que los validadores del modelo lleguen a ejecutarse.
     if (!fechaInicio || !fechaFin || !huespedId || !habitacionId) {
       await t.rollback();
       return res.status(400).json({
@@ -178,6 +175,17 @@ export const actualizarReserva = async (req: Request<{id: string}, {}, Actualiza
     }
 
     const {fechaInicio, fechaFin, habitacionId, montoTotal, estado} = req.body;
+
+    if (estado !== undefined && estado !== reserva.estado && !(estado === 'cancelada' && reserva.estado === 'pendiente')) {
+      await t.rollback();
+      return res.status(400).json({
+        error: 'Transición inválida',
+        mensaje:
+          'Con PUT sólo se puede cancelar una reserva pendiente. Para check-in y check-out usá ' +
+          'POST /reservas/:id/checkin y POST /reservas/:id/checkout.'
+      });
+    }
+
     const nuevaFechaInicio = fechaInicio ?? reserva.fechaInicio;
     const nuevaFechaFin = fechaFin ?? reserva.fechaFin;
     const nuevaHabitacionId = habitacionId ?? reserva.habitacionId;
