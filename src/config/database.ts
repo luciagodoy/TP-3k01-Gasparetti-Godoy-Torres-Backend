@@ -6,22 +6,31 @@ import mysql2 from 'mysql2';
 dotenv.config();
 
 const useSsl = process.env.DB_SSL === 'true';
-const cargarCA = (): string | Buffer | undefined => {
+
+// The CA certificate can come from two places:
+//  - DB_CA_CERT: the PEM content itself. Needed in containers and on hosting
+//    platforms, where certs/ does not exist (it is gitignored).
+//  - DB_CA_PATH: a file path, convenient for local development.
+const loadCaCertificate = (): string | Buffer | undefined => {
   if (process.env.DB_CA_CERT) {
-    // Las plataformas suelen guardar los saltos de línea como "\n" literal
-    // (barra + n): el regex /\\n/ los busca y los vuelve saltos reales.
+    // Platforms usually store line breaks as a literal "\n" (backslash + n):
+    // turn them back into real line breaks.
     return process.env.DB_CA_CERT.replace(/\\n/g, '\n');
   }
   if (process.env.DB_CA_PATH) {
     try {
       return fs.readFileSync(process.env.DB_CA_PATH);
     } catch {
-      console.warn(`No se pudo leer el certificado CA en ${process.env.DB_CA_PATH}.`);
+      console.warn(`Could not read the CA certificate at ${process.env.DB_CA_PATH}.`);
     }
   }
   return undefined;
 };
-const ca = useSsl ? cargarCA() : undefined;
+
+const ca = useSsl ? loadCaCertificate() : undefined;
+
+// With a CA the server's certificate chain is verified; without one the
+// connection is still encrypted but the server is not authenticated.
 const sslOptions: Record<string, unknown> = {
   require: true,
   rejectUnauthorized: Boolean(ca),
@@ -30,8 +39,8 @@ const sslOptions: Record<string, unknown> = {
 
 if (useSsl && !ca) {
   console.warn(
-    'ADVERTENCIA: DB_SSL=true pero no hay certificado CA (DB_CA_CERT o DB_CA_PATH). ' +
-      'La conexión va cifrada pero SIN verificar la identidad del servidor de base de datos.'
+    'WARNING: DB_SSL=true but there is no CA certificate (DB_CA_CERT or DB_CA_PATH). ' +
+      'The connection is encrypted but the database server identity is NOT verified.'
   );
 }
 
@@ -42,11 +51,9 @@ export const sequelize =
         host: process.env.DB_HOST || 'localhost',
         port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
         dialect: 'mysql',
+        // Sequelize loads the driver with a dynamic require the Vercel bundler
+        // cannot see; passing it explicitly avoids "Please install mysql2".
         dialectModule: mysql2,
         logging: false,
-        dialectOptions: useSsl
-          ? {
-              ssl: sslOptions
-            }
-          : {}
+        dialectOptions: useSsl ? {ssl: sslOptions} : {}
       });
