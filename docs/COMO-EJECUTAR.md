@@ -65,8 +65,8 @@ contraseña antes de usar el sistema en serio.
 Con el backend configurado (no hace falta que esté corriendo), desde `TP-3k01-Gasparetti-Godoy-Torres-Backend`:
 
 ```bash
-npm run seed:ubicaciones    # carga provincias y ciudades de Argentina
-npm run seed:habitaciones   # carga categorías de habitación (con fotos) + habitaciones de ejemplo
+npm run seed:locations   # carga provincias y ciudades de Argentina
+npm run seed:rooms       # carga categorías de habitación (con fotos) + habitaciones de ejemplo
 ```
 
 ## 4. Tests

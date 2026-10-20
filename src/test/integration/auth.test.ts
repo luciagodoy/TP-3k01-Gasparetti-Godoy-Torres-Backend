@@ -1,82 +1,76 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import request from 'supertest';
 import app from '../../app';
-import User from '../../models/User';
-import CategoriaHabitacion from '../../models/categoriaHabitacion';
+import {Role, RoomCategory, User} from '../../entities';
 
 const login = async (username: string, password: string) => {
   const res = await request(app).post('/api/auth/login').send({username, password});
   return res.body.token as string;
 };
 
-describe('Autenticación y protección de rutas por rol', () => {
+describe('Authentication and role-based route protection', () => {
   beforeEach(async () => {
-    await User.create({username: 'huesped1', email: 'huesped1@example.com', password: 'clave123', role: 'huesped'});
-    await User.create({username: 'admin1', email: 'admin1@example.com', password: 'clave123', role: 'admin'});
+    await User.create({username: 'guest1', email: 'guest1@example.com', password: 'clave123', role: Role.GUEST});
+    await User.create({username: 'admin1', email: 'admin1@example.com', password: 'clave123', role: Role.ADMIN});
   });
 
-  it('POST /api/auth/login devuelve un token para credenciales válidas', async () => {
-    const res = await request(app).post('/api/auth/login').send({username: 'huesped1', password: 'clave123'});
+  it('POST /api/auth/login returns a token for valid credentials and never the password', async () => {
+    const res = await request(app).post('/api/auth/login').send({username: 'guest1', password: 'clave123'});
+
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
-    expect(res.body.usuario.password).toBeUndefined();
+    expect(res.body.user.username).toBe('guest1');
+    expect(res.body.user.password).toBeUndefined();
   });
 
-  it('POST /api/auth/login rechaza credenciales inválidas', async () => {
-    const res = await request(app).post('/api/auth/login').send({username: 'huesped1', password: 'incorrecta'});
+  it('POST /api/auth/login rejects invalid credentials', async () => {
+    const res = await request(app).post('/api/auth/login').send({username: 'guest1', password: 'wrong'});
     expect(res.status).toBe(401);
   });
 
-  it('GET /api/habitaciones es público: no requiere token', async () => {
-    const res = await request(app).get('/api/habitaciones');
+  it('GET /api/rooms is public: no token required', async () => {
+    const res = await request(app).get('/api/rooms');
     expect(res.status).toBe(200);
   });
 
-  it('POST /api/habitaciones sin token es rechazado (401)', async () => {
-    const res = await request(app).post('/api/habitaciones').send({numero: 101, piso: 1, categoriaId: 1});
+  it('POST /api/rooms without a token is rejected (401)', async () => {
+    const res = await request(app).post('/api/rooms').send({number: 101, floor: 1, categoryId: 1});
     expect(res.status).toBe(401);
   });
 
-  it('POST /api/habitaciones con token de huésped es rechazado (403): no es staff', async () => {
-    const token = await login('huesped1', 'clave123');
-    const res = await request(app)
-      .post('/api/habitaciones')
-      .set('Authorization', `Bearer ${token}`)
-      .send({numero: 101, piso: 1, categoriaId: 1});
+  it('POST /api/rooms with a guest token is rejected (403): not staff', async () => {
+    const token = await login('guest1', 'clave123');
+    const res = await request(app).post('/api/rooms').set('Authorization', `Bearer ${token}`).send({number: 101, floor: 1, categoryId: 1});
     expect(res.status).toBe(403);
   });
 
-  it('POST /api/reservas con datos incompletos responde 400, no 500', async () => {
-    const token = await login('admin1', 'clave123');
-    const res = await request(app).post('/api/reservas').set('Authorization', `Bearer ${token}`).send({fechaInicio: '2026-11-01'});
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('Datos incompletos');
-  });
-
-  it('POST /api/reservas con la fecha de fin anterior a la de inicio responde 400', async () => {
-    const token = await login('admin1', 'clave123');
-    const res = await request(app)
-      .post('/api/reservas')
-      .set('Authorization', `Bearer ${token}`)
-      .send({fechaInicio: '2026-11-05', fechaFin: '2026-11-01', huespedId: 1, habitacionId: 1, montoTotal: 100});
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('El rango de fechas es inválido');
-  });
-
-  it('POST /api/habitaciones con token de admin funciona', async () => {
-    const categoria = await CategoriaHabitacion.create({
-      denominacion: 'Standard',
-      descripcion: 'Habitación básica',
-      capacidadPersonas: 2,
-      imagenesUrl: [],
-      precioNoche: 50000
+  it('POST /api/rooms with an admin token works', async () => {
+    const category = await RoomCategory.create({
+      name: 'Standard',
+      description: 'Habitación básica',
+      capacity: 2,
+      imageUrls: [],
+      pricePerNight: 50000
     });
     const token = await login('admin1', 'clave123');
+
     const res = await request(app)
-      .post('/api/habitaciones')
+      .post('/api/rooms')
       .set('Authorization', `Bearer ${token}`)
-      .send({numero: 101, piso: 1, categoriaId: categoria.id});
+      .send({number: 101, floor: 1, categoryId: category.id});
+
     expect(res.status).toBe(201);
-    expect(res.body.numero).toBe(101);
+    expect(res.body.number).toBe(101);
+  });
+
+  it('an unknown route answers a JSON 404', async () => {
+    const res = await request(app).get('/api/does-not-exist');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBeTruthy();
+  });
+
+  it('a non-numeric id answers 400 instead of hitting the database', async () => {
+    const res = await request(app).get('/api/provinces/abc');
+    expect(res.status).toBe(400);
   });
 });

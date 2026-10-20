@@ -13,8 +13,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:ubicaciones": "tsx src/scripts/seedUbicaciones.ts",
-    "seed:habitaciones": "tsx src/scripts/seedHabitaciones.ts"
+    "seed:locations": "tsx src/scripts/seed-locations.ts",
+    "seed:rooms": "tsx src/scripts/seed-rooms.ts"
   },
   "repository": {
     "type": "git",

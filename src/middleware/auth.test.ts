@@ -1,112 +1,103 @@
 import {describe, it, expect, vi} from 'vitest';
 import {Request, Response} from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../models/User';
+import {Role, User} from '../entities';
 import auth from './auth';
 
-const crearRequestFalso = (token?: string): Request =>
+const fakeRequest = (token?: string): Request =>
   ({
-    header: (nombre: string) => (nombre === 'Authorization' && token ? `Bearer ${token}` : undefined)
+    header: (name: string) => (name === 'Authorization' && token ? `Bearer ${token}` : undefined)
   }) as unknown as Request;
 
-const crearResponseFalso = (): Response => {
+const fakeResponse = (): Response => {
   const res: Partial<Response> = {};
   res.status = vi.fn().mockReturnValue(res);
   res.send = vi.fn().mockReturnValue(res);
   return res as Response;
 };
 
-const tokenPara = (userId: number) => jwt.sign({id: userId}, process.env.JWT_SECRET || 'mySecret');
+const tokenFor = (userId: number) => jwt.sign({id: userId}, process.env.JWT_SECRET || 'mySecret');
 
-describe('middleware de autenticación', () => {
-  it('rechaza con 401 si no viene el header Authorization', async () => {
-    const req = crearRequestFalso();
-    const res = crearResponseFalso();
+const createUser = (username: string, role: Role) => User.create({username, email: `${username}@example.com`, password: 'clave123', role});
+
+describe('auth middleware', () => {
+  it('rejects with 401 when there is no Authorization header', async () => {
+    const res = fakeResponse();
     const next = vi.fn();
 
-    await auth.simple(req, res, next);
+    await auth.simple(fakeRequest(), res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('rechaza con 401 si el token es inválido', async () => {
-    const req = crearRequestFalso('token-invalido');
-    const res = crearResponseFalso();
+  it('rejects with 401 when the token is invalid', async () => {
+    const res = fakeResponse();
     const next = vi.fn();
 
-    await auth.simple(req, res, next);
+    await auth.simple(fakeRequest('invalid-token'), res, next);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('auth.simple deja pasar a cualquier usuario logueado, sin importar el rol', async () => {
-    const user = await User.create({username: 'huesped1', email: 'huesped1@example.com', password: 'clave123', role: 'huesped'});
-    const req = crearRequestFalso(tokenPara(user.id));
-    const res = crearResponseFalso();
+  it('auth.simple lets any logged-in user through, whatever the role', async () => {
+    const user = await createUser('guest1', Role.GUEST);
+    const req = fakeRequest(tokenFor(user.id));
     const next = vi.fn();
 
-    await auth.simple(req, res, next);
+    await auth.simple(req, fakeResponse(), next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user?.id).toBe(user.id);
   });
 
-  it('auth.staff rechaza a un huésped', async () => {
-    const user = await User.create({username: 'huesped2', email: 'huesped2@example.com', password: 'clave123', role: 'huesped'});
-    const req = crearRequestFalso(tokenPara(user.id));
-    const res = crearResponseFalso();
+  it('auth.staff rejects a guest', async () => {
+    const user = await createUser('guest2', Role.GUEST);
+    const res = fakeResponse();
     const next = vi.fn();
 
-    await auth.staff(req, res, next);
+    await auth.staff(fakeRequest(tokenFor(user.id)), res, next);
 
-    // Token válido pero rol insuficiente: 403, no 401 (no debe cerrarle la sesión).
+    // Valid token but insufficient role: 403, not 401 (must not log the user out).
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('auth.staff deja pasar a un empleado', async () => {
-    const user = await User.create({username: 'empleado1', email: 'empleado1@example.com', password: 'clave123', role: 'empleado'});
-    const req = crearRequestFalso(tokenPara(user.id));
-    const res = crearResponseFalso();
+  it('auth.staff lets an employee through', async () => {
+    const user = await createUser('employee1', Role.EMPLOYEE);
     const next = vi.fn();
 
-    await auth.staff(req, res, next);
+    await auth.staff(fakeRequest(tokenFor(user.id)), fakeResponse(), next);
 
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it('auth.staff deja pasar a un admin', async () => {
-    const user = await User.create({username: 'admin1', email: 'admin1@example.com', password: 'clave123', role: 'admin'});
-    const req = crearRequestFalso(tokenPara(user.id));
-    const res = crearResponseFalso();
+  it('auth.staff lets an admin through', async () => {
+    const user = await createUser('admin1', Role.ADMIN);
     const next = vi.fn();
 
-    await auth.staff(req, res, next);
+    await auth.staff(fakeRequest(tokenFor(user.id)), fakeResponse(), next);
 
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it('auth.admin rechaza a un empleado (no es admin)', async () => {
-    const user = await User.create({username: 'empleado2', email: 'empleado2@example.com', password: 'clave123', role: 'empleado'});
-    const req = crearRequestFalso(tokenPara(user.id));
-    const res = crearResponseFalso();
+  it('auth.admin rejects an employee', async () => {
+    const user = await createUser('employee2', Role.EMPLOYEE);
+    const res = fakeResponse();
     const next = vi.fn();
 
-    await auth.admin(req, res, next);
+    await auth.admin(fakeRequest(tokenFor(user.id)), res, next);
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('auth.admin deja pasar a un admin', async () => {
-    const user = await User.create({username: 'admin2', email: 'admin2@example.com', password: 'clave123', role: 'admin'});
-    const req = crearRequestFalso(tokenPara(user.id));
-    const res = crearResponseFalso();
+  it('auth.admin lets an admin through', async () => {
+    const user = await createUser('admin2', Role.ADMIN);
     const next = vi.fn();
 
-    await auth.admin(req, res, next);
+    await auth.admin(fakeRequest(tokenFor(user.id)), fakeResponse(), next);
 
     expect(next).toHaveBeenCalledTimes(1);
   });
