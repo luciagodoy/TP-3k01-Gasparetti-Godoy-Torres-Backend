@@ -5,7 +5,7 @@
 # a PR, so the pin does not fall behind with unfixed CVEs.
 
 # ---- Stage 1: compile TypeScript ----
-FROM node:22.23.3-alpine3.24 AS builder
+FROM node:26.12.0-alpine3.24 AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -18,7 +18,7 @@ COPY src ./src
 RUN npm run build
 
 # ---- Stage 2: production image ----
-FROM node:22.23.3-alpine3.24 AS runner
+FROM node:26.12.0-alpine3.24 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
