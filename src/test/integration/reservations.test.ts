@@ -127,6 +127,19 @@ describe('Reservations', () => {
       expect(reservation.totalAmount).toBe(100000);
     });
 
+    it('GET /api/reservations/:id returns the full guest data, without the password', async () => {
+      const reservation = await createPendingReservation();
+
+      const res = await request(app).get(`/api/reservations/${reservation.id}`).set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.guest.documentNumber).toBe('30111222');
+      expect(res.body.guest.user.username).toBe('guest1');
+      expect(res.body.guest.user.password).toBeUndefined();
+      expect(res.body.guest.city.province.name).toBe('Santa Fe');
+      expect(res.body.room.category.name).toBe('Standard');
+    });
+
     it('lets staff cancel a pending reservation', async () => {
       const reservation = await createPendingReservation();
 
