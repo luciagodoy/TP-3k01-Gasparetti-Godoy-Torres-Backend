@@ -7,3 +7,6 @@ dist/
 docs/agents/
 graph.html
 GRAPH_REPORT.md
+.vercel
+.env*
+!.env.example
