@@ -2,7 +2,6 @@ import {Model, DataTypes, Optional} from 'sequelize';
 import bcrypt from 'bcryptjs';
 import {sequelize} from '../config/database';
 
-// Stored values are kept as they are in the database (they are data, not code).
 export const Role = {
   GUEST: 'huesped',
   EMPLOYEE: 'empleado',
@@ -33,7 +32,6 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     return bcrypt.compare(candidate, this.password);
   }
 
-  // Never expose the password hash in an API response.
   toSafeJSON(): Omit<UserAttributes, 'password'> {
     const {password: _password, ...safe} = this.toJSON();
     return safe;

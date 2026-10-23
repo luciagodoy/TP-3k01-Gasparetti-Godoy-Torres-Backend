@@ -1,8 +1,8 @@
 import {AdjustmentType, PricingRuleType} from '../entities/pricing-rule.entity';
 
-// Pure pricing arithmetic: no database, no dates, no Express. The pricing
-// service gathers the inputs (rules, occupancy, lead time) and this module only
-// does the maths, which is what the unit tests cover.
+// Aritmética de precios pura. El servicio
+// de precios reúne los datos (reglas, ocupación, antelación) y este módulo sólo
+// hace las cuentas, que es lo que cubren los tests unitarios.
 
 export interface PricingRuleData {
   type: PricingRuleType;
@@ -14,8 +14,8 @@ export interface PricingRuleData {
 }
 
 export interface NightContext {
-  occupancy: number; // % of the category's rooms booked that night (0-100)
-  leadDays: number; // days from today until the check-in
+  occupancy: number; // % de las habitaciones de la categoría reservadas esa noche (0-100)
+  leadDays: number; // días desde hoy hasta el check-in
 }
 
 export interface NightPrice<R extends PricingRuleData = PricingRuleData> {
@@ -24,16 +24,15 @@ export interface NightPrice<R extends PricingRuleData = PricingRuleData> {
   leadTimeRule: R | null;
 }
 
-// No combination of rules can sell a night below half its base price.
 export const MIN_PRICE_RATIO = 0.5;
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
-// [from, to): `from` inclusive, `to` exclusive, `to` null = no upper limit.
+// [from, to): `from` inclusive, `to` exclusivo, `to` null = sin límite superior.
 const inRange = (rule: PricingRuleData, measure: number): boolean => measure >= rule.from && (rule.to === null || measure < rule.to);
 
-// The rule that applies to `measure`. A rule of the category wins over a
-// global one (categoryId null) covering the same measure.
+// La regla que aplica a `measure`. Una regla de la categoría gana sobre una
+// global (categoryId null) que cubra la misma medida.
 export const selectRule = <R extends PricingRuleData>(rules: R[], type: PricingRuleType, measure: number, categoryId: number): R | null => {
   const matching = rules.filter(
     (rule) => rule.type === type && inRange(rule, measure) && (rule.categoryId === null || rule.categoryId === categoryId)
@@ -46,9 +45,9 @@ const applyAdjustment = (price: number, rule: PricingRuleData | null): number =>
   return rule.adjustmentType === AdjustmentType.PERCENTAGE ? price * (1 + rule.value / 100) : price + rule.value;
 };
 
-// Price of one night. The occupancy adjustment is applied first and the lead
-// time one on top of it, so two percentages multiply: +30 % then -10 % is
-// x1.30 x0.90 = +17 %, not +20 %.
+// Precio de una noche. Primero se aplica el ajuste por ocupación y encima el de
+// antelación, así que dos porcentajes se multiplican: +30 % y luego -10 % es
+// x1,30 x0,90 = +17 %, no +20 %.
 export const priceForNight = <R extends PricingRuleData>(
   basePrice: number,
   {occupancy, leadDays}: NightContext,

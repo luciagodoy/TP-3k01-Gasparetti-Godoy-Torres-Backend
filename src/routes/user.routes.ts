@@ -2,7 +2,7 @@ import {Router} from 'express';
 import {userController} from '../controllers/user.controller';
 import auth from '../middleware/auth';
 
-// Account management is admin-only.
+// La gestión de cuentas es sólo para admin.
 const router = Router();
 
 router.get('/', auth.admin, userController.list);

@@ -1,16 +1,11 @@
 import {Role} from '../entities';
 import {userRepository} from '../repositories/user.repository';
 
-// User management requires the admin role, so the first admin cannot be created
-// through the API. On startup, if there is no admin yet, one is created from
+// La gestión de usuarios requiere el rol admin, así que el primer admin no se puede
+// crear por la API. Al arrancar, si todavía no hay ningún admin, se crea uno a partir de
 // ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD.
 export async function seedAdmin(): Promise<void> {
   if (await userRepository.findAnyAdmin()) return;
-
-  // No default password in production: an "admin123" admin on the real
-  // database can be guessed by anyone who reads the README. Startup stops, as
-  // it does without JWT_SECRET. Only applies while there is no admin, so the
-  // variable is not required after the first deploy.
   if (!process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'production') {
     throw new Error('Missing ADMIN_PASSWORD: the initial admin account is not created with the default password in production.');
   }

@@ -38,7 +38,7 @@ class GuestService extends BaseService<Guest> {
     super(guests);
   }
 
-  // Self sign-up: the account and its guest profile are created together or not at all.
+  // Autoregistro: la cuenta y su perfil de huésped se crean juntos o no se crea ninguno.
   register(input: GuestRegistration): Promise<Guest> {
     return runInTransaction(async (transaction) => {
       const user = await this.users.create(
@@ -74,7 +74,7 @@ class GuestService extends BaseService<Guest> {
     return guest;
   }
 
-  // Used by the self-service flows: the logged-in account must have a guest profile.
+  // Lo usan los flujos de autoservicio: la cuenta logueada debe tener un perfil de huésped.
   async requireGuestIdOfUser(userId: number, transaction?: Transaction): Promise<number> {
     const guest = await this.guests.findByUserId(userId, transaction);
     if (!guest) throw new NotFoundError(NO_PROFILE_MESSAGE);
@@ -86,7 +86,7 @@ class GuestService extends BaseService<Guest> {
     return this.guests.update(guest, pickDefined(input, EDITABLE_FIELDS));
   }
 
-  // Deletes the whole account; the guest profile goes with it (ON DELETE CASCADE).
+  // Borra la cuenta completa; el perfil de huésped se va con ella (ON DELETE CASCADE).
   async remove(id: number): Promise<void> {
     const guest = await this.getById(id);
     const user = await this.users.findById(guest.userId);

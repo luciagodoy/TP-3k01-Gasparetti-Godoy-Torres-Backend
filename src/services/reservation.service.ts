@@ -14,7 +14,6 @@ export interface StaffReservationInput {
   endDate: string;
   guestId: number;
   roomId: number;
-  // Optional: staff may agree on a price; without one the dynamic rate applies.
   totalAmount?: number;
 }
 
@@ -22,12 +21,11 @@ export interface GuestReservationInput {
   roomId: number;
   startDate: string;
   endDate: string;
-  // The total the guest was shown. With dynamic pricing it can change between
-  // the search and the confirmation; if it did, the booking is not made.
+  // El total que se le mostró al huésped. Con tarifa dinámica puede cambiar entre
+  // la búsqueda y la confirmación; si cambió, la reserva no se hace.
   expectedTotal?: number;
 }
 
-// Amounts are compared in cents: 0.1 + 0.2 !== 0.3 in floating point.
 const sameAmount = (a: number, b: number): boolean => Math.round(a * 100) === Math.round(b * 100);
 
 export interface ReservationUpdate {
@@ -41,9 +39,6 @@ export interface ReservationUpdate {
 const NOT_FOUND = 'Reserva no encontrada';
 
 const invalidTransition = (detail: string) => new BadRequestError('Transición inválida', detail);
-
-// Life cycle: pendiente -> check-in -> check-out, or pendiente -> cancelada.
-// Each transition has its own method; the generic update cannot skip steps.
 class ReservationService extends BaseService<Reservation> {
   protected readonly notFoundMessage = NOT_FOUND;
   protected readonly deleteBlockedMessage = 'Es posible que existan consumos asociados a esta reserva.';
@@ -68,8 +63,6 @@ class ReservationService extends BaseService<Reservation> {
   }
 
   create(input: StaffReservationInput): Promise<Reservation> {
-    // Checked before querying: with a missing field the overlap query fails
-    // with a generic error before the entity validators can run.
     if (!input.startDate || !input.endDate || !input.guestId || !input.roomId) {
       throw new BadRequestError('Datos incompletos', 'startDate, endDate, guestId y roomId son obligatorios.');
     }
@@ -98,9 +91,9 @@ class ReservationService extends BaseService<Reservation> {
       const reservation = await this.reservations.findById(id, {transaction});
       if (!reservation) throw new NotFoundError(NOT_FOUND);
 
-      // Check-in and check-out have their own endpoints, which also occupy or
-      // free the room. The only status change allowed here is cancelling a
-      // pending reservation (staff have no other way to do it).
+      // El check-in y el check-out tienen sus propios endpoints, que además ocupan o
+      // liberan la habitación. El único cambio de estado permitido acá es cancelar una
+      // reserva pendiente (el staff no tiene otra forma de hacerlo).
       const {status} = input;
       const isCancellation = status === ReservationStatus.CANCELLED && reservation.status === ReservationStatus.PENDING;
       if (status !== undefined && status !== reservation.status && !isCancellation) {
@@ -137,9 +130,9 @@ class ReservationService extends BaseService<Reservation> {
       if (reservation.status !== ReservationStatus.PENDING) {
         throw invalidTransition(`No se puede hacer check-in de una reserva en estado "${reservation.status}".`);
       }
-      // A stay may start the day the previous one ends; if that guest has not
-      // checked out yet, letting this one in would leave the room marked as
-      // available when the late check-out happens.
+      // Una estadía puede empezar el día en que termina la anterior; si ese huésped todavía no
+      // hizo el check-out, dejar entrar a este dejaría la habitación marcada como
+      // disponible cuando se produzca el check-out tardío.
       const current = await this.reservations.findCheckedInForRoom(reservation.roomId, reservation.id, transaction);
       if (current) {
         throw new BadRequestError('Habitación ocupada', `La reserva #${current.id} todavía no hizo el check-out de esta habitación.`);
@@ -149,7 +142,6 @@ class ReservationService extends BaseService<Reservation> {
     });
   }
 
-  // Returns the reservation with everything the receipt needs.
   async checkOut(id: number): Promise<Reservation> {
     await runInTransaction(async (transaction) => {
       const reservation = await this.findForTransition(id, transaction);
@@ -170,7 +162,7 @@ class ReservationService extends BaseService<Reservation> {
     return reservation;
   }
 
-  // --- Guest self-service ---
+  // --- Autoservicio del huésped ---
 
   createForGuest(userId: number, input: GuestReservationInput): Promise<Reservation> {
     return runInTransaction(async (transaction) => {
@@ -183,12 +175,10 @@ class ReservationService extends BaseService<Reservation> {
 
       const room = await this.assertRoomIsFree(input.roomId, input.startDate, input.endDate, undefined, transaction);
 
-      // The guest never sends the amount: it is quoted here, inside the
-      // transaction. The lock is per room, so two guests booking *different*
-      // rooms of the same category at the same instant may both get the tier
-      // below (each quote misses the other booking). Availability is not at
-      // risk, only one price step; serializing every booking of a category
-      // would cost far more than it protects.
+      // El huésped nunca envía el monto: se cotiza acá, dentro de la
+      // transacción. El bloqueo es por habitación, así que dos huéspedes reservando habitaciones
+      // *distintas* de la misma categoría en el mismo instante pueden recibir ambos el escalón
+      // inferior (cada cotización no ve la otra reserva).
       const quote = await pricingService.quoteCategory(room.categoryId, input.startDate, input.endDate, transaction);
       if (input.expectedTotal != null && !sameAmount(input.expectedTotal, quote.total)) {
         throw new ConflictError(
@@ -220,7 +210,6 @@ class ReservationService extends BaseService<Reservation> {
     return runInTransaction(async (transaction) => {
       const guestId = await guestService.requireGuestIdOfUser(userId, transaction);
       const reservation = await this.reservations.findById(id, {transaction});
-      // Someone else's reservation answers 404, not 403: it does not reveal that it exists.
       if (!reservation || reservation.guestId !== guestId) throw new NotFoundError(NOT_FOUND);
       if (reservation.status !== ReservationStatus.PENDING) {
         throw invalidTransition(`No se puede cancelar una reserva en estado "${reservation.status}".`);
@@ -229,7 +218,7 @@ class ReservationService extends BaseService<Reservation> {
     });
   }
 
-  // --- Helpers ---
+  // --- Auxiliares ---
 
   private async assertRoomIsFree(
     roomId: number,
@@ -238,8 +227,6 @@ class ReservationService extends BaseService<Reservation> {
     excludeId: number | undefined,
     transaction: Transaction
   ): Promise<Room> {
-    // Locking the room first makes concurrent bookings of the same room wait
-    // for each other, so the check and the insert behave as one step.
     const room = await this.rooms.findByIdForUpdate(roomId, {transaction});
     if (!room) throw new NotFoundError('Habitación no encontrada');
 

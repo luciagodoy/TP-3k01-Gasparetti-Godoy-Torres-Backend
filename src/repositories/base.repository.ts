@@ -4,9 +4,8 @@ export interface WriteOptions {
   transaction?: Transaction;
 }
 
-// Contract every repository fulfils. Services depend on this interface, not on
-// Sequelize (Dependency Inversion): the persistence technology can change by
-// rewriting only the repositories, without touching business rules.
+// Contrato que cumple todo repositorio. Los servicios dependen de esta interfaz, no de
+// Sequelize (Inversión de Dependencias)
 export interface Repository<M extends Model> {
   findAll(options?: FindOptions<Attributes<M>>): Promise<M[]>;
   findById(id: number, options?: Omit<FindOptions<Attributes<M>>, 'where'>): Promise<M | null>;
@@ -15,8 +14,6 @@ export interface Repository<M extends Model> {
   delete(entity: M, options?: WriteOptions): Promise<void>;
 }
 
-// Data-access layer: the only place that talks to Sequelize. Entity
-// repositories extend this class with the queries specific to their entity.
 export class BaseRepository<M extends Model> implements Repository<M> {
   constructor(protected readonly model: ModelStatic<M>) {}
 

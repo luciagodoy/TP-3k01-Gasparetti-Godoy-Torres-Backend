@@ -1,15 +1,14 @@
-// Loads Argentina's provinces and cities from the public Georef API
-// (https://datosgobar.github.io/georef-ar-api/) so they do not have to be typed in.
-// Safe to run more than once: ignoreDuplicates never duplicates rows.
+// Carga las provincias y ciudades de Argentina desde la API pública Georef
+// (https://datosgobar.github.io/georef-ar-api/) para no tener que tipearlas.
+// Se puede correr más de una vez sin problema: ignoreDuplicates nunca duplica filas.
 //
-// Usage: npm run seed:locations
+// Uso: npm run seed:locations
 
 import {sequelize} from '../config/database';
 import {City, Province} from '../entities';
 
 const GEOREF_BASE = 'https://apis.datos.gob.ar/georef/api';
 
-// Field names below belong to the external Georef API, so they stay as it sends them.
 interface GeorefProvince {
   id: string;
   nombre: string;

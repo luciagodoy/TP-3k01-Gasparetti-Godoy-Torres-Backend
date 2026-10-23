@@ -16,7 +16,7 @@ export interface AppliedAdjustment {
 
 export interface NightQuote {
   date: string;
-  occupancy: number; // % of the category's rooms booked that night
+  occupancy: number; // % de las habitaciones de la categoría reservadas esa noche
   basePrice: number;
   price: number;
   occupancyAdjustment: AppliedAdjustment | null;
@@ -34,7 +34,6 @@ export interface CategoryQuote {
   nights: NightQuote[];
 }
 
-// The quote endpoint is public: a cap keeps one request from asking for years.
 export const MAX_QUOTE_NIGHTS = 365;
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
@@ -42,11 +41,11 @@ const round2 = (value: number): number => Math.round(value * 100) / 100;
 const toAdjustment = (rule: PricingRule | null): AppliedAdjustment | null =>
   rule && {ruleId: rule.id, adjustmentType: rule.adjustmentType, value: rule.value};
 
-// Rooms booked on each night of [startDate, startDate + nightCount), per
-// category. One pass over the reservations, each one adding 1 to the nights it
-// covers inside the range (the check-out day is not one of its nights). Cost:
-// the reserved nights, instead of nights x reservations for a public endpoint
-// that accepts up to a year.
+// Habitaciones reservadas en cada noche de [startDate, startDate + nightCount), por
+// categoría. Una sola pasada por las reservas, cada una suma 1 a las noches que cubre
+// dentro del rango (el día de check-out no es una de sus noches). Costo:
+// las noches reservadas, en vez de noches x reservas, para un endpoint público
+// que acepta hasta un año.
 const bookedPerNight = (reservations: Reservation[], startDate: string, nightCount: number): Map<number, number[]> => {
   const booked = new Map<number, number[]>();
   const endDate = addDays(startDate, nightCount);
@@ -62,11 +61,6 @@ const bookedPerNight = (reservations: Reservation[], startDate: string, nightCou
   return booked;
 };
 
-// Dynamic pricing (yield management). The price of a stay is computed night by
-// night, from the base price of the category adjusted by:
-//  - the occupancy of that category on that night (rooms booked / rooms), and
-//  - the lead time: days left from today until the check-in.
-// It is recomputed on every request, so it follows the occupancy in real time.
 class PricingService {
   constructor(
     private readonly rules = pricingRuleRepository,
@@ -75,7 +69,7 @@ class PricingService {
     private readonly reservations = reservationRepository
   ) {}
 
-  // Quotes every category, or only `categoryId` when given.
+
   async quote(startDate: string, endDate: string, categoryId?: number, transaction?: Transaction): Promise<CategoryQuote[]> {
     if (!startDate || !endDate) {
       throw new BadRequestError('Datos incompletos', 'startDate y endDate son obligatorios.');
@@ -88,8 +82,6 @@ class PricingService {
     const categories = await this.findCategories(categoryId, transaction);
     if (categories.length === 0) return [];
     const ids = categories.map((category) => category.id);
-
-    // Three queries in total, whatever the number of nights or categories.
     const rules = await this.rules.findActiveFor(ids, transaction);
     const roomCounts = await this.rooms.countByCategory(ids, transaction);
     const reservations = await this.reservations.findActiveInRange(startDate, endDate, ids, transaction);
@@ -104,7 +96,6 @@ class PricingService {
 
       const nights = dates.map((date, i): NightQuote => {
         const bookedRooms = bookedOfCategory?.[i] ?? 0;
-        // Exact value against the tiers; rounding is only for display.
         const occupancy = roomCount > 0 ? Math.min(100, (bookedRooms / roomCount) * 100) : 0;
         const night = priceForNight(category.pricePerNight, {occupancy, leadDays}, rules, category.id);
         return {

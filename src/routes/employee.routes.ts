@@ -2,7 +2,6 @@ import {Router} from 'express';
 import {employeeController} from '../controllers/employee.controller';
 import auth from '../middleware/auth';
 
-// Staff management is admin-only.
 const router = Router();
 
 router.get('/', auth.admin, employeeController.list);

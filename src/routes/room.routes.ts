@@ -4,7 +4,7 @@ import auth from '../middleware/auth';
 
 const router = Router();
 
-// Public: guests search availability without logging in.
+// Público: los huéspedes buscan disponibilidad sin iniciar sesión.
 router.get('/', roomController.search);
 router.get('/:id', roomController.getById);
 router.post('/', auth.staff, roomController.create);

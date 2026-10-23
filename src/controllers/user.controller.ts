@@ -2,7 +2,7 @@ import {Request, Response} from 'express';
 import {userService, UserInput} from '../services/user.service';
 import {parseId} from '../shared/http';
 
-// Every response goes through toSafeJSON so the password hash never leaves the API.
+// Toda respuesta pasa por toSafeJSON para que el hash de la contraseña nunca salga de la API.
 export const userController = {
   async list(_req: Request, res: Response): Promise<void> {
     const users = await userService.list();

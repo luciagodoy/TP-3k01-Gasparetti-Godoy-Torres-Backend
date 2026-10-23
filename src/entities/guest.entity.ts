@@ -40,7 +40,6 @@ Guest.init(
       references: {model: 'Ciudades', key: 'id'}
     },
     country: {type: DataTypes.STRING, allowNull: false, defaultValue: 'Argentina', field: 'pais'}
-    // userId is added by the User <-> Guest association (see associations.ts).
   },
   {sequelize, tableName: 'Huespedes', timestamps: true}
 );

@@ -32,9 +32,6 @@ class RoomService extends BaseService<Room> {
     super(rooms);
   }
 
-  // With dates it is an availability search: only rooms marked available that
-  // have no active reservation in that range. Without dates (management view)
-  // it lists rooms in every state.
   async search({startDate, endDate, categoryId, people}: RoomFilters): Promise<Room[]> {
     const byDates = Boolean(startDate && endDate);
     const excludeIds = byDates ? await this.reservations.findBookedRoomIds(startDate!, endDate!) : [];

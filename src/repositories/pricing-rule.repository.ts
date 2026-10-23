@@ -24,7 +24,7 @@ class PricingRuleRepository extends BaseRepository<PricingRule> {
     return this.findById(id, {include: withCategory});
   }
 
-  // Active rules that can apply to these categories: their own and the global ones.
+  // Reglas activas que pueden aplicar a estas categorías: las propias y las globales.
   findActiveFor(categoryIds: number[], transaction?: Transaction): Promise<PricingRule[]> {
     return this.findAll({
       where: {active: true, [Op.or]: [{categoryId: null}, {categoryId: categoryIds}]},
@@ -32,8 +32,7 @@ class PricingRuleRepository extends BaseRepository<PricingRule> {
     });
   }
 
-  // Rules of the same type and scope (same category, or both global): the
-  // candidates a new range could collide with.
+  // Reglas del mismo tipo y alcance (misma categoría, o ambas globales).
   findSameScope(type: PricingRuleType, categoryId: number | null, excludeId?: number): Promise<PricingRule[]> {
     const where: WhereOptions<PricingRule> = {
       type,

@@ -1,8 +1,8 @@
 import {Model, DataTypes, Optional} from 'sequelize';
 import {sequelize} from '../config/database';
 
-// An extra service the hotel offers (spa, breakfast, parking...). Named
-// "amenity" so it does not clash with the service layer.
+// Un servicio extra que ofrece el hotel (spa, desayuno, cochera...). Se llama
+// "amenity" para no chocar con la capa de servicios.
 interface AmenityAttributes {
   id: number;
   name: string;

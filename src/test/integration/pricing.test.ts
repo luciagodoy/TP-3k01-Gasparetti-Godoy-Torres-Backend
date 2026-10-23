@@ -17,8 +17,6 @@ import {
   User
 } from '../../entities';
 
-// "Today" for the lead time: 2026-10-20 in Argentina. Only Date is faked, so
-// the timers supertest relies on keep working.
 const TODAY = new Date('2026-10-20T15:00:00Z');
 
 const login = async (username: string) => {
@@ -33,7 +31,6 @@ const createGuest = async () => {
   return Guest.create({phone: null, documentNumber: '30111222', cityId: city.id, country: 'Argentina', userId: user.id});
 };
 
-// Standard: 2 rooms at 100 per night. Suite: 1 room at 200 per night.
 const createHotel = async () => {
   const standard = await RoomCategory.create({name: 'Standard', capacity: 2, pricePerNight: 100});
   const suite = await RoomCategory.create({name: 'Suite', capacity: 2, pricePerNight: 200});
@@ -76,7 +73,7 @@ describe('Dynamic pricing', () => {
     it('measures the occupancy of each night within the category', async () => {
       const guest = await createGuest();
       const {standard, suite, room1} = await createHotel();
-      await book(guest.id, room1.id, '2026-11-02', '2026-11-03'); // 1 of 2 Standard rooms, night of 11-02 only
+      await book(guest.id, room1.id, '2026-11-02', '2026-11-03'); 
       await occupancyRule(50, 20);
 
       const res = await quote({startDate: '2026-11-01', endDate: '2026-11-04'});
@@ -86,15 +83,14 @@ describe('Dynamic pricing', () => {
       expect(standardQuote.nights.map((night: {occupancy: number}) => night.occupancy)).toEqual([0, 50, 0]);
       expect(standardQuote.nights.map((night: {price: number}) => night.price)).toEqual([100, 120, 100]);
       expect(standardQuote.total).toBe(320);
-      // A full Standard category does not make the Suite more expensive.
       expect(suiteQuote.total).toBe(600);
     });
 
     it('counts reservations that start before or end after the quoted range only on their nights inside it', async () => {
       const guest = await createGuest();
       const {standard, room1, room2} = await createHotel();
-      await book(guest.id, room1.id, '2026-10-30', '2026-11-03'); // inside the range: nights of 11-01 and 11-02
-      await book(guest.id, room2.id, '2026-11-02', '2026-11-06'); // inside the range: nights of 11-02 and 11-03
+      await book(guest.id, room1.id, '2026-10-30', '2026-11-03');
+      await book(guest.id, room2.id, '2026-11-02', '2026-11-06');
 
       const res = await quote({startDate: '2026-11-01', endDate: '2026-11-04', categoryId: standard.id});
 
@@ -118,13 +114,12 @@ describe('Dynamic pricing', () => {
       const {standard, room1} = await createHotel();
       await book(guest.id, room1.id, '2026-10-25', '2026-10-26');
       await occupancyRule(50, 20);
-      // Today is 2026-10-20: a stay on 2026-10-25 is 5 days away.
       await PricingRule.create({type: PricingRuleType.LEAD_TIME, from: 0, to: 7, adjustmentType: AdjustmentType.PERCENTAGE, value: 10});
 
       const res = await quote({startDate: '2026-10-25', endDate: '2026-10-26', categoryId: standard.id});
 
       expect(res.body[0].leadDays).toBe(5);
-      expect(res.body[0].total).toBe(132); // 100 x 1.20 x 1.10 (adding them would give 130)
+      expect(res.body[0].total).toBe(132); 
     });
 
     it('a rule of the category wins over a global one', async () => {
@@ -274,13 +269,13 @@ describe('Dynamic pricing', () => {
       await rule({from: 50, to: 80});
 
       expect((await rule({from: 50, to: 80, categoryId: category.id})).status).toBe(201);
-      expect((await rule({from: 80})).status).toBe(201); // [50, 80) and [80, ...) only touch
+      expect((await rule({from: 80})).status).toBe(201); // 
     });
 
     it('rejects invalid ranges and values', async () => {
       expect((await rule({from: 50, to: 50})).status).toBe(400);
-      expect((await rule({from: 90, to: 120})).status).toBe(400); // occupancy above 100 %
-      expect((await rule({from: 0, value: -100})).status).toBe(400); // free nights
+      expect((await rule({from: 90, to: 120})).status).toBe(400); 
+      expect((await rule({from: 0, value: -100})).status).toBe(400); 
       expect((await rule({from: 0, type: 'temporada'})).status).toBe(400);
     });
 
@@ -293,9 +288,6 @@ describe('Dynamic pricing', () => {
       expect(res.status).toBe(409);
     });
 
-    // Regression: the foreign key was ON DELETE SET NULL, so deleting a category
-    // turned its own rules (say +50 % for Suites) into global rules that priced
-    // every other category.
     it('a category with its own rules cannot be deleted, and its rules stay its own', async () => {
       const category = await RoomCategory.create({name: 'Suite', capacity: 2, pricePerNight: 200});
       const created = await rule({from: 50, value: 50, categoryId: category.id});

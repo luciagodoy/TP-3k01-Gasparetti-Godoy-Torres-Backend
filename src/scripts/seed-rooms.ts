@@ -1,9 +1,9 @@
-// Loads room categories (with a few photos each) and sample rooms, to try the
-// search/booking flow without typing everything in. Photos come from Picsum
-// (https://picsum.photos), a free stock-image service with stable URLs.
-// Category names and descriptions are shown to users, hence Spanish.
+// Carga categorías de habitación (con algunas fotos cada una) y habitaciones de ejemplo, para
+// probar el flujo de búsqueda/reserva sin tipear todo. Las fotos vienen de Picsum
+// (https://picsum.photos), un servicio gratuito de imágenes con URLs estables.
+// Los nombres y descripciones de las categorías se muestran a los usuarios, por eso están en castellano.
 //
-// Usage: npm run seed:rooms
+// Uso: npm run seed:rooms
 
 import {sequelize} from '../config/database';
 import {Room, RoomCategory} from '../entities';
@@ -53,7 +53,6 @@ const CATEGORIES = [
   }
 ];
 
-// Created by the team without photos: only photos and a room are added to it.
 const PRESIDENTIAL = {
   name: 'Presidential Suite',
   imageUrls: photos(['hotel-presidential-1', 'hotel-presidential-2', 'hotel-presidential-3']),

@@ -22,7 +22,7 @@ class AmenityPriceService extends BaseService<AmenityPrice> {
     super(prices);
   }
 
-  // `onlyCurrent` returns at most one price: the one valid today.
+
   async list(amenityId?: number, onlyCurrent = false): Promise<AmenityPrice[]> {
     if (onlyCurrent) {
       if (amenityId === undefined) {

@@ -20,8 +20,6 @@ class AmenityPriceRepository extends BaseRepository<AmenityPrice> {
     return this.findById(id, {include: withAmenity});
   }
 
-  // Valid on `date` = validFrom <= date AND (validTo IS NULL OR validTo >= date).
-  // If several overlap, the one that started most recently wins.
   findValidOn(amenityId: number, date: string): Promise<AmenityPrice | null> {
     return this.findOne({
       where: {

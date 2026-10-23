@@ -11,11 +11,8 @@ import AmenityPrice from './amenity-price.entity';
 import ReservationAmenity from './reservation-amenity.entity';
 import PricingRule from './pricing-rule.entity';
 
-// All associations live here so every entry point (app, tests, seed scripts)
-// gets the same model graph just by importing the entities index.
-//
-// When a foreign key is not declared in the entity (guestId, roomId), the
-// object form maps the English attribute to the existing column.
+// Todas las asociaciones viven acá para que cada punto de entrada (app, tests, scripts
+// de seed) obtenga el mismo grafo de modelos con sólo importar el índice de entidades.
 
 RoomCategory.hasMany(Room, {foreignKey: 'categoryId', as: 'rooms'});
 Room.belongsTo(RoomCategory, {foreignKey: 'categoryId', as: 'category'});
@@ -49,8 +46,8 @@ ReservationAmenity.belongsTo(Reservation, {foreignKey: 'reservationId', as: 'res
 AmenityQuota.hasMany(ReservationAmenity, {foreignKey: 'quotaId', as: 'reservationAmenities'});
 ReservationAmenity.belongsTo(AmenityQuota, {foreignKey: 'quotaId', as: 'quota'});
 
-// RESTRICT, not the default SET NULL: a null categoryId means "every category",
-// so deleting a category would silently turn its own rules into global ones.
+// RESTRICT, no el SET NULL por defecto: un categoryId nulo significa "todas las categorías",
+// así que borrar una categoría convertiría sus reglas propias en globales.
 const pricingRuleCategory = {foreignKey: 'categoryId', onDelete: 'RESTRICT'};
 RoomCategory.hasMany(PricingRule, {...pricingRuleCategory, as: 'pricingRules'});
 PricingRule.belongsTo(RoomCategory, {...pricingRuleCategory, as: 'category'});

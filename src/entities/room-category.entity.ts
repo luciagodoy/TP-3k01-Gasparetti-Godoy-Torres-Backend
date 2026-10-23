@@ -39,7 +39,6 @@ RoomCategory.init(
       allowNull: false,
       defaultValue: 0,
       field: 'precioNoche',
-      // MySQL returns DECIMAL as a string.
       get() {
         const value = this.getDataValue('pricePerNight');
         return value ? parseFloat(value as unknown as string) : 0;

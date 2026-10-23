@@ -25,7 +25,6 @@ class RoomRepository extends BaseRepository<Room> {
 
     return this.findAll({
       where: roomWhere,
-      // required: INNER JOIN, so the category filters also filter the rooms.
       include: [{model: RoomCategory, as: 'category', where: categoryWhere, required: true}]
     });
   }
@@ -34,7 +33,6 @@ class RoomRepository extends BaseRepository<Room> {
     return this.findById(id, {include: [{model: RoomCategory, as: 'category'}]});
   }
 
-  // Number of rooms of each category: the denominator of the occupancy.
   async countByCategory(categoryIds: number[], transaction?: Transaction): Promise<Map<number, number>> {
     const rooms = await this.findAll({where: {categoryId: categoryIds}, attributes: ['id', 'categoryId'], transaction});
     const counts = new Map<number, number>();
@@ -42,9 +40,6 @@ class RoomRepository extends BaseRepository<Room> {
     return counts;
   }
 
-  // Row lock (SELECT ... FOR UPDATE): serializes the reservations of one room,
-  // so two concurrent bookings cannot both pass the overlap check. Must be
-  // called inside a transaction.
   findByIdForUpdate(id: number, {transaction}: Required<WriteOptions>): Promise<Room | null> {
     return this.findById(id, {transaction, lock: transaction.LOCK.UPDATE});
   }

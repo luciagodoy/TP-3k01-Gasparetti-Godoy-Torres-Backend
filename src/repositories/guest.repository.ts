@@ -11,7 +11,7 @@ class GuestRepository extends BaseRepository<Guest> {
     super(Guest);
   }
 
-  // Only profiles whose account still has the guest role.
+  // Sólo los perfiles cuya cuenta todavía tiene el rol de huésped.
   findAllWithProfile(): Promise<Guest[]> {
     return this.findAll({include: [{...userWithoutPassword, where: {role: Role.GUEST}}, cityWithProvince]});
   }
