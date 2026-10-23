@@ -4,7 +4,6 @@ import auth from '../middleware/auth';
 
 const router = Router();
 
-// Revenue management: only the staff sees and edits the tiers.
 router.get('/', auth.staff, pricingRuleController.list);
 router.get('/:id', auth.staff, pricingRuleController.getById);
 router.post('/', auth.staff, pricingRuleController.create);

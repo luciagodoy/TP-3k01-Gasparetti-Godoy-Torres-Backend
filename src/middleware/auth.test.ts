@@ -59,7 +59,7 @@ describe('auth middleware', () => {
 
     await auth.staff(fakeRequest(tokenFor(user.id)), res, next);
 
-    // Valid token but insufficient role: 403, not 401 (must not log the user out).
+    // Token válido pero rol insuficiente: 403, no 401 (no debe cerrar la sesión del usuario).
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });

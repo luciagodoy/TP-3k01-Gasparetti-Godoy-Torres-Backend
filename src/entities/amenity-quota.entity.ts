@@ -2,7 +2,7 @@ import {Model, DataTypes, Optional} from 'sequelize';
 import {sequelize} from '../config/database';
 import type Amenity from './amenity.entity';
 
-// How many units of an amenity can be booked in total, and how many are left.
+// Cuántas unidades de un servicio se pueden reservar en total, y cuántas quedan.
 interface AmenityQuotaAttributes {
   id: number;
   quantity: number;

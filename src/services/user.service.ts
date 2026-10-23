@@ -35,7 +35,7 @@ class UserService extends BaseService<User> {
 
   async update(id: number, input: Partial<UserInput>): Promise<User> {
     const user = await this.getById(id);
-    // The password is hashed by the entity's beforeSave hook.
+    // La contraseña se hashea en el hook beforeSave de la entidad.
     return this.repository.update(user, pickDefined(input, EDITABLE_FIELDS));
   }
 }

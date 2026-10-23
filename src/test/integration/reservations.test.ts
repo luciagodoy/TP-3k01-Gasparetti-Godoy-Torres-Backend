@@ -82,8 +82,6 @@ describe('Reservations', () => {
   });
 
   describe('PUT /api/reservations/:id status changes', () => {
-    // Regression: the PUT accepted any status, so a reservation could go from
-    // pending to checked-out without a check-in and the room was never occupied.
     it('rejects skipping the life cycle (pending -> check-out) and leaves the reservation untouched', async () => {
       const reservation = await createPendingReservation();
 
@@ -109,9 +107,9 @@ describe('Reservations', () => {
       expect(res.status).toBe(400);
     });
 
-    // Business decision: the amount is fixed when the reservation is made.
-    // Moving the dates or the room keeps it, even with dynamic pricing active;
-    // staff can still send a new totalAmount explicitly.
+    // Decisión de negocio: el monto queda fijo cuando se hace la reserva.
+    // Mover las fechas o la habitación lo conserva, incluso con tarifa dinámica activa;
+    // el staff igual puede enviar un totalAmount nuevo explícitamente.
     it('keeps the amount when staff change the dates, even if the dynamic price differs', async () => {
       const reservation = await createPendingReservation(); // 2026-11-01 -> 2026-11-03, 100000
       await PricingRule.create({type: PricingRuleType.OCCUPANCY, from: 0, adjustmentType: AdjustmentType.PERCENTAGE, value: 50});
@@ -157,9 +155,6 @@ describe('Reservations', () => {
       expect((await Room.findByPk(reservation.roomId))?.status).toBe(RoomStatus.AVAILABLE);
     });
 
-    // Same-day turnover: the next guest can check in on the day the previous one
-    // leaves, but only once the previous one has actually checked out. Otherwise
-    // the late check-out would mark the room as available with someone inside.
     it('blocks the check-in of the next reservation while the previous one is still checked in', async () => {
       const previous = await createPendingReservation(); // 2026-11-01 -> 2026-11-03
       const next = await Reservation.create({
@@ -207,7 +202,7 @@ describe('Reservations', () => {
         .send({roomId: room.id, startDate: '2026-12-01', endDate: '2026-12-04', totalAmount: 1});
 
       expect(res.status).toBe(201);
-      expect(res.body.reservation.totalAmount).toBe(150000); // 3 nights x 50000, the sent amount is ignored
+      expect(res.body.reservation.totalAmount).toBe(150000); // 3 noches x 50000, el monto enviado se ignora
     });
 
     it('a guest cannot book a room that is already taken for those dates', async () => {
@@ -237,8 +232,8 @@ describe('Reservations', () => {
     });
   });
 
-  // Business rule: check-out is until 10:00 of the last day and check-in from
-  // 15:00 of the first day, so a stay may start on the day another one ends.
+  // Regla de negocio: el check-out es hasta las 10:00 del último día y el check-in desde las
+  // 15:00 del primer día, así que una estadía puede empezar el día en que termina otra.
   describe('same-day turnover', () => {
     it.each([
       ['starts on the day the existing one ends', '2026-11-03', '2026-11-05'],

@@ -17,7 +17,7 @@ class CityService extends BaseService<City> {
     super(cities);
   }
 
-  // The full list is ~3900 rows, so the frontend asks for one province at a time.
+  // La lista completa son ~3900 filas, así que el frontend pide una provincia por vez.
   list(provinceId?: number): Promise<City[]> {
     return this.cities.findAllWithProvince(provinceId);
   }

@@ -7,7 +7,6 @@ class UserRepository extends BaseRepository<User> {
     super(User);
   }
 
-  // Login accepts either the username or the email.
   findByUsernameOrEmail(identifier: string): Promise<User | null> {
     return this.findOne({where: {[Op.or]: [{username: identifier}, {email: identifier}]}});
   }

@@ -19,13 +19,11 @@ declare global {
   }
 }
 
-// Factory: requires a valid token and, when roles are given, one of them.
-// No roles => any authenticated user.
 //
-// 401 and 403 are kept apart on purpose: 401 = "I don't know who you are"
-// (no token, invalid token or deleted user), 403 = "I know who you are, but
-// your role is not enough". The frontend logs out on 401; on 403 the session
-// is still valid and only the error should be shown.
+// 401 y 403 se mantienen separados a propósito: 401 = "no sé quién sos"
+// (sin token, token inválido o usuario borrado), 403 = "sé quién sos, pero
+// tu rol no alcanza". El frontend cierra la sesión con 401; con 403 la sesión
+// sigue siendo válida y sólo hay que mostrar el error.
 const requireRole = (...allowedRoles: Role[]) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     let user: User | null;
@@ -56,7 +54,7 @@ const requireRole = (...allowedRoles: Role[]) => {
 };
 
 export default {
-  simple: requireRole(), // any logged-in user (guest, employee or admin)
-  staff: requireRole(Role.EMPLOYEE, Role.ADMIN), // day-to-day hotel operations
-  admin: requireRole(Role.ADMIN) // accounts and staff management
+  simple: requireRole(), // cualquier usuario logueado (huésped, empleado o admin)
+  staff: requireRole(Role.EMPLOYEE, Role.ADMIN), // operación diaria del hotel
+  admin: requireRole(Role.ADMIN) // gestión de cuentas y del personal
 };

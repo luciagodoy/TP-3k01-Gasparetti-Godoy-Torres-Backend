@@ -3,8 +3,6 @@ import {amenityQuotaRepository} from '../repositories/amenity-quota.repository';
 import {BadRequestError, NotFoundError} from '../shared/errors';
 import {BaseService} from './base.service';
 
-// `available` is never accepted from the client: the server owns it to keep the
-// invariant 0 <= available <= quantity.
 export interface AmenityQuotaInput {
   quantity: number;
   amenityId: number;
@@ -32,8 +30,8 @@ class AmenityQuotaService extends BaseService<AmenityQuota> {
     return this.quotas.create({quantity: input.quantity, available: input.quantity, amenityId: input.amenityId});
   }
 
-  // Changing the total shifts `available` by the same amount, so units already
-  // consumed stay consumed. It cannot go below what has been consumed.
+  // Cambiar el total desplaza `available` en la misma cantidad, así las unidades ya
+  // consumidas siguen consumidas. No puede bajar de lo que ya se consumió.
   async update(id: number, input: Partial<AmenityQuotaInput>): Promise<AmenityQuota> {
     const quota = await this.getById(id);
     const changes: Partial<AmenityQuota> = {};

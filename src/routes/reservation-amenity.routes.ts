@@ -4,7 +4,7 @@ import auth from '../middleware/auth';
 
 const router = Router();
 
-// Guest self-service.
+// Autoservicio del huésped.
 router.post('/mine', auth.simple, reservationAmenityController.createMine);
 
 // Staff.

@@ -10,10 +10,10 @@ export interface ReservationSearch {
   endDate?: string;
 }
 
-// Business rule: check-out is until 10:00 of the last day and check-in from
-// 15:00 of the first day, so the day a stay ends can be the day the next one
-// starts. Two stays overlap only if each one starts strictly before the other
-// ends (this also covers one containing the other).
+// Regla de negocio: el check-out es hasta las 10:00 del último día y el check-in desde las
+// 15:00 del primer día, así que el día en que termina una estadía puede ser el día en que
+// empieza la siguiente. Dos estadías se superponen sólo si cada una empieza estrictamente
+// antes de que termine la otra (esto también cubre que una contenga a la otra).
 const overlapping = (startDate: string, endDate: string): WhereOptions<Reservation> => ({
   startDate: {[Op.lt]: endDate},
   endDate: {[Op.gt]: startDate}
@@ -47,15 +47,15 @@ class ReservationRepository extends BaseRepository<Reservation> {
         ...overlapping(startDate, endDate)
       },
       transaction,
-      // A locking read sees the latest committed rows. A plain SELECT would
-      // read the transaction's snapshot (REPEATABLE READ in MySQL), which can
-      // predate a reservation another request just committed for this room.
+      // Una lectura con bloqueo ve las últimas filas confirmadas. Un SELECT común
+      // leería el snapshot de la transacción (REPEATABLE READ en MySQL), que puede ser
+      // anterior a una reserva que otro request acaba de confirmar para esta habitación.
       ...(transaction && {lock: transaction.LOCK.UPDATE})
     });
   }
 
-  // The stay currently in the room, if any. Needed because with same-day
-  // turnover the next reservation may try to check in before this one leaves.
+  // La estadía que está actualmente en la habitación, si hay alguna. Hace falta porque con
+  // recambio el mismo día la reserva siguiente puede intentar hacer check-in antes de que esta salga.
   findCheckedInForRoom(roomId: number, excludeId: number, transaction: Transaction): Promise<Reservation | null> {
     return this.findOne({
       where: {roomId, status: ReservationStatus.CHECKED_IN, id: {[Op.ne]: excludeId}},
@@ -63,9 +63,9 @@ class ReservationRepository extends BaseRepository<Reservation> {
     });
   }
 
-  // Active reservations of the given categories that touch [startDate, endDate),
-  // in one query: the pricing service counts the occupancy of each night from
-  // this list in memory instead of running one query per night.
+  // Reservas activas de las categorías dadas que tocan [startDate, endDate),
+  // en una sola consulta: el servicio de precios cuenta la ocupación de cada noche a partir
+  // de esta lista en memoria, en vez de ejecutar una consulta por noche.
   findActiveInRange(startDate: string, endDate: string, categoryIds: number[], transaction?: Transaction): Promise<Reservation[]> {
     return this.findAll({
       where: {...notCancelled, ...overlapping(startDate, endDate)},
@@ -105,7 +105,6 @@ class ReservationRepository extends BaseRepository<Reservation> {
     });
   }
 
-  // Everything the payment receipt needs, in one query.
   findByIdForReceipt(id: number): Promise<Reservation | null> {
     return this.findById(id, {
       include: [

@@ -1,8 +1,8 @@
 import {Transaction} from 'sequelize';
 import {sequelize} from '../config/database';
 
-// Managed transaction: commits when `work` resolves and rolls back when it
-// throws, so services never call commit/rollback by hand. Lives in the data
-// layer so services do not import the ORM connection.
+// Transacción administrada: confirma cuando `work` se resuelve y hace rollback cuando
+// lanza un error, así los servicios nunca llaman a commit/rollback a mano. Vive en la
+// capa de datos para que los servicios no importen la conexión del ORM.
 export const runInTransaction = <T>(work: (transaction: Transaction) => Promise<T>): Promise<T> =>
   sequelize.transaction(work);

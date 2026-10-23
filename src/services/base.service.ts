@@ -1,14 +1,9 @@
 import {Attributes, FindOptions, ForeignKeyConstraintError, Model} from 'sequelize';
 import {Repository, WriteOptions} from '../repositories/base.repository';
 import {BadRequestError, NotFoundError} from '../shared/errors';
-
-// Behaviour shared by every entity service: fetching by id with a 404, and
-// deleting with a clear message when related rows prevent it.
 export abstract class BaseService<M extends Model> {
   protected abstract readonly notFoundMessage: string;
   protected abstract readonly deleteBlockedMessage: string;
-
-  // Depends on the Repository interface, not on a concrete class or the ORM.
   constructor(protected readonly repository: Repository<M>) {}
 
   async getById(id: number, options?: Omit<FindOptions<Attributes<M>>, 'where'>): Promise<M> {

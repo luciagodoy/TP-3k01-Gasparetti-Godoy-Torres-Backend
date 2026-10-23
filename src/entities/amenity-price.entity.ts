@@ -2,7 +2,7 @@ import {Model, DataTypes, Optional} from 'sequelize';
 import {sequelize} from '../config/database';
 import type Amenity from './amenity.entity';
 
-// Price of an amenity over a validity period (validTo null = still valid).
+// Precio de un servicio durante un período de vigencia (validTo null = sigue vigente).
 interface AmenityPriceAttributes {
   id: number;
   price: number;

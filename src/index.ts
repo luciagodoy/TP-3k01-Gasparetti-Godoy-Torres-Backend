@@ -10,16 +10,16 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer(): Promise<void> {
   try {
-    // Fail at startup, not on the first login, if JWT_SECRET is missing.
+    // Fallar al arrancar, y no en el primer login, si falta JWT_SECRET.
     getJwtSecret();
 
     await sequelize.authenticate();
     console.log('Connected to MySQL.');
 
-    // sync({ alter: true }) diffs the entities against the tables and runs
-    // ALTER TABLE on the fly. Handy in development; against the production
-    // database it is an unreviewed schema change with no way back. In
-    // production it only runs when explicitly requested with DB_SYNC=alter.
+    // sync({ alter: true }) compara las entidades con las tablas y ejecuta
+    // ALTER TABLE sobre la marcha. Cómodo en desarrollo; contra la base de
+    // producción es un cambio de esquema sin revisar y sin vuelta atrás. En
+    // producción sólo corre cuando se pide explícitamente con DB_SYNC=alter.
     const syncSchema = process.env.NODE_ENV !== 'production' || process.env.DB_SYNC === 'alter';
     if (syncSchema) {
       await sequelize.sync({alter: true});
@@ -29,10 +29,6 @@ async function startServer(): Promise<void> {
     }
 
     await seedAdmin();
-
-    // listen errors (e.g. EADDRINUSE) arrive asynchronously and the try/catch
-    // does not see them: without this handler the process looked "started"
-    // in the logs while nothing was listening.
     const server = app.listen(PORT, () => {
       console.log(`Server listening on http://localhost:${PORT}`);
     });
@@ -41,7 +37,6 @@ async function startServer(): Promise<void> {
       process.exit(1);
     });
   } catch (error) {
-    // A failed startup must not leave the process alive but useless.
     console.error('Fatal error while starting the server:', error);
     process.exit(1);
   }

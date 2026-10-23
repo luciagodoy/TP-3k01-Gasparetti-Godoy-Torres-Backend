@@ -4,7 +4,7 @@ import {userRepository} from '../repositories/user.repository';
 import {BadRequestError, UnauthorizedError} from '../shared/errors';
 
 export interface Credentials {
-  username?: string; // username or email
+  username?: string; 
   password?: string;
 }
 
@@ -17,8 +17,8 @@ class AuthService {
     }
 
     const user = await this.users.findByUsernameOrEmail(username);
-    // Same message whether the user exists or not, so the API does not reveal
-    // which usernames are registered.
+    // Mismo mensaje exista o no el usuario, para que la API no revele
+    // qué nombres de usuario están registrados.
     if (!user || !(await user.comparePassword(password))) {
       throw new UnauthorizedError('Credenciales inválidas');
     }

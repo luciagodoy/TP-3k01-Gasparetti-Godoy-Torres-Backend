@@ -1,6 +1,5 @@
 import {beforeAll, afterAll, afterEach} from 'vitest';
 import {sequelize} from '../config/database';
-// Registers every entity and its associations (NODE_ENV=test -> in-memory SQLite).
 import '../entities';
 
 beforeAll(async () => {
@@ -8,9 +7,9 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  // Empty every table between tests so they do not share state. Foreign keys
-  // are off meanwhile: every table ends up empty anyway, and with RESTRICT ones
-  // (pricing rules -> category) the order of the models would matter.
+  // Vaciar todas las tablas entre tests para que no compartan estado. Las claves foráneas
+  // se apagan mientras tanto: todas las tablas terminan vacías igual, y con las RESTRICT
+  // (reglas de tarifa -> categoría) el orden de los modelos importaría.
   await sequelize.query('PRAGMA foreign_keys = OFF');
   try {
     for (const model of Object.values(sequelize.models)) {

@@ -17,7 +17,7 @@ interface ReservationAttributes {
   startDate: string; // DATEONLY: 'YYYY-MM-DD'
   endDate: string;
   status: ReservationStatus;
-  totalAmount: number; // lodging only, amenities are billed separately
+  totalAmount: number; // sólo el alojamiento, los servicios se facturan aparte
   guestId?: number;
   roomId?: number;
 }
@@ -68,7 +68,7 @@ Reservation.init(
         return value ? parseFloat(value as unknown as string) : 0;
       }
     }
-    // guestId and roomId are added by their associations (see associations.ts).
+    // guestId y roomId los agregan sus asociaciones (ver associations.ts).
   },
   {sequelize, tableName: 'Reservas', timestamps: true}
 );

@@ -35,7 +35,6 @@ City.init(
     sequelize,
     tableName: 'Ciudades',
     timestamps: true,
-    // Index fields are column names (Sequelize does not map them from attributes).
     indexes: [{unique: true, fields: ['nombre', 'provinciaId']}]
   }
 );

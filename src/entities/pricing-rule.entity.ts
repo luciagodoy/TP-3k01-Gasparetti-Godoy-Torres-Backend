@@ -2,25 +2,25 @@ import {Model, DataTypes, Optional} from 'sequelize';
 import {sequelize} from '../config/database';
 import type RoomCategory from './room-category.entity';
 
-// What the rule measures: the occupancy of the category on each night (%), or
-// the days left until the check-in.
+// Qué mide la regla: la ocupación de la categoría en cada noche (%), o
+// los días que faltan hasta el check-in.
 export const PricingRuleType = {
   OCCUPANCY: 'ocupacion',
   LEAD_TIME: 'antelacion'
 } as const;
 export type PricingRuleType = (typeof PricingRuleType)[keyof typeof PricingRuleType];
 
-// How the rule changes the price: a percentage (multiplied with the other
-// rule's percentage) or a fixed amount per night.
+// Cómo cambia el precio la regla: un porcentaje (se multiplica con el porcentaje
+// de la otra regla) o un monto fijo por noche.
 export const AdjustmentType = {
   PERCENTAGE: 'porcentaje',
   FIXED: 'fijo'
 } as const;
 export type AdjustmentType = (typeof AdjustmentType)[keyof typeof AdjustmentType];
 
-// One tier of the dynamic pricing ("yield management"): when the measure falls
-// in [from, to), the nightly price is adjusted by `value`. `to` null = no upper
-// limit (the top tier). `categoryId` null = applies to every category.
+// Un escalón de la tarifa dinámica ("yield management"): cuando la medida cae
+// en [from, to), el precio por noche se ajusta en `value`. `to` null = sin límite
+// superior (el escalón más alto). `categoryId` null = aplica a todas las categorías.
 interface PricingRuleAttributes {
   id: number;
   type: PricingRuleType;
@@ -68,7 +68,6 @@ PricingRule.init(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       field: 'valor',
-      // MySQL returns DECIMAL as a string.
       get() {
         const value = this.getDataValue('value');
         return value ? parseFloat(value as unknown as string) : 0;

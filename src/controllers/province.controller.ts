@@ -1,9 +1,6 @@
 import {Request, Response} from 'express';
 import {provinceService, ProvinceInput} from '../services/province.service';
 import {parseId} from '../shared/http';
-
-// Controllers only deal with HTTP: read the request, call the service, send the
-// response. Errors propagate to the error-handler middleware.
 export const provinceController = {
   async list(_req: Request, res: Response): Promise<void> {
     res.json(await provinceService.list());

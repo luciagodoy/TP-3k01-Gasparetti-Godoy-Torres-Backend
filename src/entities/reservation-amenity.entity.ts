@@ -3,8 +3,6 @@ import {sequelize} from '../config/database';
 import type Reservation from './reservation.entity';
 import type AmenityQuota from './amenity-quota.entity';
 
-// An amenity consumed during a reservation. The unit price is copied at
-// booking time so later price changes do not alter past bills.
 interface ReservationAmenityAttributes {
   id: number;
   quantity: number;

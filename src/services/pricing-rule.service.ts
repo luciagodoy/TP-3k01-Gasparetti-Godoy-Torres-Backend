@@ -25,7 +25,7 @@ const invalid = (detail: string) => new BadRequestError('Regla de tarifa inváli
 
 const describeRange = (from: number, to: number | null) => (to === null ? `desde ${from}` : `${from} a ${to}`);
 
-// [from, to) ranges, null = no upper limit.
+
 const rangesOverlap = (a: {from: number; to: number | null}, b: {from: number; to: number | null}): boolean =>
   a.from < (b.to ?? Infinity) && b.from < (a.to ?? Infinity);
 
@@ -63,8 +63,6 @@ class PricingRuleService extends BaseService<PricingRule> {
 
   async update(id: number, input: Partial<PricingRuleInput>): Promise<PricingRule> {
     const rule = await this.getById(id);
-    // Validated as a whole: changing only `to` can create an overlap or an
-    // empty range together with the `from` already stored.
     const data: PricingRuleData = {
       type: rule.type,
       from: rule.from,
@@ -98,9 +96,7 @@ class PricingRuleService extends BaseService<PricingRule> {
     if (data.adjustmentType === AdjustmentType.PERCENTAGE && data.value <= -100) {
       throw invalid('Un descuento porcentual tiene que ser menor al 100 %.');
     }
-
-    // Two rules of the same type and scope covering the same measure would make
-    // the price depend on which one the database returns first.
+.
     const sameScope = await this.rules.findSameScope(data.type, data.categoryId, excludeId);
     const clash = sameScope.find((other) => rangesOverlap(data, other));
     if (clash) {

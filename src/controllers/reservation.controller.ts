@@ -19,13 +19,12 @@ interface ListReservationsQuery {
 
 const sendReceipt = (res: Response, reservation: Reservation): void => {
   res.setHeader('Content-Type', 'application/pdf');
-  // The file name is what the guest sees when saving it.
   res.setHeader('Content-Disposition', `attachment; filename="comprobante-reserva-${reservation.id}.pdf"`);
   renderReceiptPdf(reservation, res);
 };
 
 export const reservationController = {
-  // --- Guest self-service ---
+  // --- Autoservicio del huésped ---
 
   async createMine(req: Request<{}, {}, GuestReservationInput>, res: Response): Promise<void> {
     const reservation = await reservationService.createForGuest(req.user!.id, req.body);
@@ -79,7 +78,7 @@ export const reservationController = {
     res.json({message: 'Check-in realizado con éxito', reservation});
   },
 
-  // Answers with the PDF receipt.
+  // Responde con el comprobante en PDF.
   async checkOut(req: Request<{id: string}>, res: Response): Promise<void> {
     sendReceipt(res, await reservationService.checkOut(parseId(req.params.id)));
   },

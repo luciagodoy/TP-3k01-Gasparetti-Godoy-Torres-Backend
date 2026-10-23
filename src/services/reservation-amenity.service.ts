@@ -29,8 +29,8 @@ export interface ConsumptionUpdate {
 const NOT_FOUND = 'Consumo de servicio no encontrado';
 const QUOTA_NOT_FOUND = 'Cupo no encontrado';
 
-// Amenities consumed during a reservation. Every write keeps the quota's
-// `available` counter in sync inside the same transaction.
+// Servicios consumidos durante una reserva. Toda escritura mantiene sincronizado el
+// contador `available` del cupo dentro de la misma transacción.
 class ReservationAmenityService {
   constructor(
     private readonly consumptions = reservationAmenityRepository,
@@ -48,16 +48,13 @@ class ReservationAmenityService {
     return consumption;
   }
 
-  // Staff entry: the unit price comes from the request (e.g. a negotiated price).
+  // Alta por el staff: el precio unitario viene en el request (p. ej. un precio negociado).
   createAsStaff(input: StaffConsumptionInput): Promise<ReservationAmenity> {
     return runInTransaction((transaction) =>
       this.register(input.reservationId, input.quotaId, input.quantity, input.unitPrice, transaction)
     );
   }
 
-  // Self-service: the guest only picks quota and quantity. The price is ALWAYS
-  // resolved on the server (never trusted from the client) and the reservation
-  // must belong to the guest.
   createForGuest(userId: number, input: GuestConsumptionInput): Promise<ReservationAmenity> {
     return runInTransaction(async (transaction) => {
       const guestId = await guestService.requireGuestIdOfUser(userId, transaction);
@@ -75,7 +72,6 @@ class ReservationAmenityService {
     });
   }
 
-  // Changing the quantity gives units back to (or takes them from) the quota.
   update(id: number, input: ConsumptionUpdate): Promise<ReservationAmenity> {
     return runInTransaction(async (transaction) => {
       const consumption = await this.consumptions.findById(id, {transaction});
@@ -106,7 +102,6 @@ class ReservationAmenityService {
     });
   }
 
-  // Deleting a consumption returns its units to the quota.
   remove(id: number): Promise<void> {
     return runInTransaction(async (transaction) => {
       const consumption = await this.consumptions.findById(id, {transaction});
@@ -127,8 +122,6 @@ class ReservationAmenityService {
     unitPrice: number,
     transaction: Transaction
   ): Promise<ReservationAmenity> {
-    // Locking the quota row prevents two concurrent bookings from both taking
-    // the last units (a transaction alone is not enough).
     const quota = await this.quotas.findByIdForUpdate(quotaId, {transaction});
     if (!quota) throw new NotFoundError(QUOTA_NOT_FOUND);
     if (quota.available < quantity) {

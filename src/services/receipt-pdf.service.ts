@@ -4,8 +4,8 @@ import {Reservation} from '../entities';
 const COLUMNS = {concept: 50, quantity: 280, unitPrice: 350, subtotal: 450};
 const LINE_END = 550;
 
-// Writes the payment receipt of a checked-out reservation to `output` (an HTTP
-// response, a file...). The receipt is read by the guest, so its text is Spanish.
+// Escribe el comprobante de pago de una reserva con check-out en `output` (una respuesta
+// HTTP, un archivo...).
 export function renderReceiptPdf(reservation: Reservation, output: NodeJS.WritableStream): void {
   const room = reservation.room;
   const user = reservation.guest?.user;

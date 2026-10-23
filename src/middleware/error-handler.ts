@@ -6,16 +6,16 @@ export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({error: 'Recurso no encontrado'});
 };
 
-// Single place that turns errors into HTTP responses. Express 5 forwards
-// rejected promises from async handlers here, so controllers need no try/catch.
-// Response shape: { error, message?, details? } where `message` explains the
-// error to the user and `details` is debug information (never in production).
+// Único lugar que convierte errores en respuestas HTTP. Express 5 reenvía acá las
+// promesas rechazadas de los handlers async, así que los controladores no necesitan try/catch.
+// Forma de la respuesta: { error, message?, details? } donde `message` le explica el
+// error al usuario y `details` es información de depuración (nunca en producción).
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   if (error instanceof AppError) {
     res.status(error.status).json({error: error.message, ...(error.detail && {message: error.detail})});
     return;
   }
-  // Must be checked before ValidationError: it is a subclass of it.
+  // Debe verificarse antes que ValidationError: es una subclase de ese.
   if (error instanceof UniqueConstraintError) {
     res.status(409).json({error: 'Ya existe un registro con esos datos', details: errorDetail(error)});
     return;
@@ -32,13 +32,12 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     });
     return;
   }
-  // Malformed JSON body (rejected by express.json()).
+
   if (error?.type === 'entity.parse.failed') {
     res.status(400).json({error: 'El cuerpo de la petición no es un JSON válido'});
     return;
   }
 
-  // The request line tells which call failed when reading production logs.
   console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, error);
   res.status(500).json({error: 'Error interno del servidor', details: errorDetail(error)});
 };

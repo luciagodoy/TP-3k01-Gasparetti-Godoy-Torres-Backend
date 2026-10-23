@@ -15,8 +15,6 @@ class Province extends Model<ProvinceAttributes, ProvinceCreationAttributes> imp
   declare readonly updatedAt: Date;
 }
 
-// Attribute names are English; `field` keeps the existing column names so the
-// database schema does not change.
 Province.init(
   {
     id: {type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true},

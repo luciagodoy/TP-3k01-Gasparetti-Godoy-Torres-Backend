@@ -15,8 +15,6 @@ const rule = (overrides: Partial<PricingRuleData>): PricingRuleData => ({
   ...overrides
 });
 
-// The example tiers from the design: occupancy 50-80 % +15 %, 80 %+ +30 %;
-// lead time under 7 days +20 %, more than 60 days -10 %.
 const RULES: PricingRuleData[] = [
   rule({type: PricingRuleType.OCCUPANCY, from: 50, to: 80, value: 15}),
   rule({type: PricingRuleType.OCCUPANCY, from: 80, to: null, value: 30}),
@@ -34,9 +32,9 @@ describe('priceForNight', () => {
   });
 
   it('multiplies the occupancy and lead-time percentages instead of adding them', () => {
-    // 100 x 1.30 x 0.90 = 117 (adding them would give 120).
+    // 100 x 1,30 x 0,90 = 117 (sumándolos daría 120).
     expect(priceForNight(100, {occupancy: 90, leadDays: 90}, RULES, CATEGORY).price).toBe(117);
-    // 100 x 1.30 x 1.20 = 156 (adding them would give 150).
+    // 100 x 1,30 x 1,20 = 156 (sumándolos daría 150).
     expect(priceForNight(100, {occupancy: 90, leadDays: 3}, RULES, CATEGORY).price).toBe(156);
   });
 
@@ -56,7 +54,6 @@ describe('priceForNight', () => {
       rule({type: PricingRuleType.OCCUPANCY, from: 50, value: 10}),
       rule({type: PricingRuleType.LEAD_TIME, from: 0, to: 7, adjustmentType: AdjustmentType.FIXED, value: 25})
     ];
-    // (100 x 1.10) + 25
     expect(priceForNight(100, {occupancy: 50, leadDays: 2}, rules, CATEGORY).price).toBe(135);
   });
 
@@ -65,7 +62,6 @@ describe('priceForNight', () => {
       rule({type: PricingRuleType.OCCUPANCY, from: 0, to: 30, value: -40}),
       rule({type: PricingRuleType.LEAD_TIME, from: 61, value: -40})
     ];
-    // 100 x 0.6 x 0.6 = 36 -> floor at 50
     expect(priceForNight(100, {occupancy: 10, leadDays: 90}, rules, CATEGORY).price).toBe(50);
   });
 

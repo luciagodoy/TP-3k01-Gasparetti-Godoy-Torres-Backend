@@ -1,7 +1,7 @@
 import {BadRequestError} from './errors';
 
-// Route params arrive as strings; anything that is not a positive integer is
-// rejected before it reaches the database.
+// Los parámetros de ruta llegan como strings; todo lo que no sea un entero positivo
+// se rechaza antes de llegar a la base de datos.
 export const parseId = (value: string | undefined): number => {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {
@@ -10,7 +10,7 @@ export const parseId = (value: string | undefined): number => {
   return id;
 };
 
-// Optional numeric query param: undefined when missing or empty.
+// Parámetro numérico opcional de la query: undefined cuando falta o está vacío.
 export const optionalNumber = (value: unknown): number | undefined => {
   if (value === undefined || value === null || value === '') return undefined;
   const number = Number(value);
@@ -20,8 +20,8 @@ export const optionalNumber = (value: unknown): number | undefined => {
   return number;
 };
 
-// Copies only the listed keys that are actually present, so a PUT with a partial
-// body leaves the other columns untouched (and unknown keys are ignored).
+// Copia sólo las claves listadas que realmente están presentes, así un PUT con un cuerpo
+// parcial deja intactas las demás columnas (y las claves desconocidas se ignoran).
 export const pickDefined = <T extends object, K extends keyof T>(source: T, keys: readonly K[]): Partial<Pick<T, K>> => {
   const result: Partial<Pick<T, K>> = {};
   for (const key of keys) {

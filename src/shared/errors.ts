@@ -1,7 +1,6 @@
-// Domain errors carry the HTTP status they map to, so services can report a
-// failure without knowing anything about Express. The error-handler middleware
-// turns them into responses. `message` and `detail` are shown to the end user,
-// which is why they stay in Spanish.
+// Los errores de dominio llevan el estado HTTP al que corresponden, así los servicios pueden
+// informar una falla sin saber nada de Express. El middleware error-handler los
+// convierte en respuestas. `message` y `detail` se le muestran al usuario.
 export class AppError extends Error {
   constructor(
     readonly status: number,
@@ -37,9 +36,6 @@ export class ConflictError extends AppError {
   }
 }
 
-// Raw messages from Sequelize or the MySQL driver leak column and constraint
-// names: useful while developing, free information for anyone probing the API
-// in production. `undefined` makes JSON.stringify drop the key.
 export const errorDetail = (error: unknown): string | undefined => {
   if (process.env.NODE_ENV === 'production') return undefined;
   return error instanceof Error ? error.message : String(error);
