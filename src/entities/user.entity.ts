@@ -1,7 +1,7 @@
 import {Model, DataTypes, Optional} from 'sequelize';
 import bcrypt from 'bcryptjs';
 import {sequelize} from '../config/database';
-.
+
 export const Role = {
   GUEST: 'huesped',
   EMPLOYEE: 'empleado',

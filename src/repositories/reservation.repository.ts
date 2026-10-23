@@ -105,9 +105,9 @@ class ReservationRepository extends BaseRepository<Reservation> {
     return this.findAll({where, include: [{model: Room, as: 'room'}]});
   }
 
-  // The staff detail view: the full reservation plus the guest's data (account
-  // without the password, and location), the room with its category and the
-  // consumed amenities.
+  // La vista de detalle del staff: la reserva completa más los datos del huésped (la cuenta
+  // sin la contraseña, y la ubicación), la habitación con su categoría y los
+  // servicios consumidos.
   findByIdWithDetails(id: number): Promise<Reservation | null> {
     return this.findById(id, {
       include: [

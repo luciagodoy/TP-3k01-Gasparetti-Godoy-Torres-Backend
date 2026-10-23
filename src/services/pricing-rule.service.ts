@@ -96,7 +96,7 @@ class PricingRuleService extends BaseService<PricingRule> {
     if (data.adjustmentType === AdjustmentType.PERCENTAGE && data.value <= -100) {
       throw invalid('Un descuento porcentual tiene que ser menor al 100 %.');
     }
-.
+
     const sameScope = await this.rules.findSameScope(data.type, data.categoryId, excludeId);
     const clash = sameScope.find((other) => rangesOverlap(data, other));
     if (clash) {
