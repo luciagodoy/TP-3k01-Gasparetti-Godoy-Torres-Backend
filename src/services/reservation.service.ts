@@ -56,8 +56,8 @@ class ReservationService extends BaseService<Reservation> {
     return this.reservations.search(filters);
   }
 
-  async getWithRoom(id: number): Promise<Reservation> {
-    const reservation = await this.reservations.findByIdWithRoom(id);
+  async getWithDetails(id: number): Promise<Reservation> {
+    const reservation = await this.reservations.findByIdWithDetails(id);
     if (!reservation) throw new NotFoundError(NOT_FOUND);
     return reservation;
   }

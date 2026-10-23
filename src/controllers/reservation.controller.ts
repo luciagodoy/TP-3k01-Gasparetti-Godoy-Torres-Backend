@@ -61,7 +61,7 @@ export const reservationController = {
   },
 
   async getById(req: Request<{id: string}>, res: Response): Promise<void> {
-    res.json(await reservationService.getWithRoom(parseId(req.params.id)));
+    res.json(await reservationService.getWithDetails(parseId(req.params.id)));
   },
 
   async update(req: Request<{id: string}, {}, ReservationUpdate>, res: Response): Promise<void> {
