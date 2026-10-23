@@ -1,5 +1,17 @@
 import {Op, Transaction, WhereOptions} from 'sequelize';
-import {Amenity, AmenityQuota, Guest, Reservation, ReservationAmenity, ReservationStatus, Room, RoomCategory, User} from '../entities';
+import {
+  Amenity,
+  AmenityQuota,
+  City,
+  Guest,
+  Province,
+  Reservation,
+  ReservationAmenity,
+  ReservationStatus,
+  Room,
+  RoomCategory,
+  User
+} from '../entities';
 import {BaseRepository} from './base.repository';
 
 export interface ReservationSearch {
@@ -93,8 +105,24 @@ class ReservationRepository extends BaseRepository<Reservation> {
     return this.findAll({where, include: [{model: Room, as: 'room'}]});
   }
 
-  findByIdWithRoom(id: number): Promise<Reservation | null> {
-    return this.findById(id, {include: [{model: Room, as: 'room'}]});
+  // The staff detail view: the full reservation plus the guest's data (account
+  // without the password, and location), the room with its category and the
+  // consumed amenities.
+  findByIdWithDetails(id: number): Promise<Reservation | null> {
+    return this.findById(id, {
+      include: [
+        {
+          model: Guest,
+          as: 'guest',
+          include: [
+            {model: User, as: 'user', attributes: {exclude: ['password']}},
+            {model: City, as: 'city', include: [{model: Province, as: 'province'}]}
+          ]
+        },
+        {model: Room, as: 'room', include: [{model: RoomCategory, as: 'category'}]},
+        withAmenities
+      ]
+    });
   }
 
   findByGuestWithDetails(guestId: number): Promise<Reservation[]> {
