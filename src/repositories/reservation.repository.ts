@@ -66,6 +66,16 @@ class ReservationRepository extends BaseRepository<Reservation> {
     });
   }
 
+  // Las reservas que todavía importan para la operación del hotel: pendientes o en curso.
+  findActiveByGuest(guestId: number, transaction?: Transaction): Promise<Reservation[]> {
+    return this.findAll({
+      where: {guestId, status: [ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]},
+      attributes: ['id', 'status'],
+      order: [['id', 'ASC']],
+      transaction
+    });
+  }
+
   // La estadía que está actualmente en la habitación, si hay alguna. Hace falta porque con
   // recambio el mismo día la reserva siguiente puede intentar hacer check-in antes de que esta salga.
   findCheckedInForRoom(roomId: number, excludeId: number, transaction: Transaction): Promise<Reservation | null> {

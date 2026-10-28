@@ -4,10 +4,24 @@ import {reservationRepository, ReservationSearch} from '../repositories/reservat
 import {roomRepository} from '../repositories/room.repository';
 import {runInTransaction} from '../repositories/transaction';
 import {BadRequestError, ConflictError, NotFoundError} from '../shared/errors';
-import {assertValidRange} from '../shared/dates';
+import {assertValidRange, displayDate, hotelNow} from '../shared/dates';
 import {BaseService} from './base.service';
 import {guestService} from './guest.service';
 import {pricingService} from './pricing.service';
+import {reservationAmenityService} from './reservation-amenity.service';
+
+// Horarios del hotel, en la hora de Argentina.
+export const CHECK_IN_FROM = '15:00';
+export const CHECK_OUT_UNTIL = '10:00';
+
+// Fuera de horario, el staff puede confirmar un check-in anticipado o un check-out tardío.
+export interface CheckInOptions {
+  early?: boolean;
+}
+
+export interface CheckOutOptions {
+  late?: boolean;
+}
 
 export interface StaffReservationInput {
   startDate: string;
@@ -109,6 +123,10 @@ class ReservationService extends BaseService<Reservation> {
       if (input.startDate !== undefined || input.endDate !== undefined || input.roomId !== undefined) {
         await this.assertRoomIsFree(roomId, startDate, endDate, reservation.id, transaction);
       }
+      // Los servicios se cobran por noche: si cambia la estadía, cambian sus totales.
+      if (startDate !== reservation.startDate || endDate !== reservation.endDate) {
+        await reservationAmenityService.repriceForStay(reservation.id, assertValidRange(startDate, endDate), transaction);
+      }
 
       return this.reservations.update(
         reservation,
@@ -124,12 +142,13 @@ class ReservationService extends BaseService<Reservation> {
     });
   }
 
-  checkIn(id: number): Promise<Reservation> {
+  checkIn(id: number, {early = false}: CheckInOptions = {}): Promise<Reservation> {
     return runInTransaction(async (transaction) => {
       const reservation = await this.findForTransition(id, transaction);
       if (reservation.status !== ReservationStatus.PENDING) {
         throw invalidTransition(`No se puede hacer check-in de una reserva en estado "${reservation.status}".`);
       }
+      this.assertCheckInTime(reservation, early);
       // Una estadía puede empezar el día en que termina la anterior; si ese huésped todavía no
       // hizo el check-out, dejar entrar a este dejaría la habitación marcada como
       // disponible cuando se produzca el check-out tardío.
@@ -142,16 +161,41 @@ class ReservationService extends BaseService<Reservation> {
     });
   }
 
-  async checkOut(id: number): Promise<Reservation> {
+  // Salir antes de la fecha de fin siempre se puede; pasadas las 10:00 del día de salida
+  // hay que confirmarlo. Bloquearlo del todo dejaría la habitación trabada como ocupada.
+  async checkOut(id: number, {late = false}: CheckOutOptions = {}): Promise<Reservation> {
     await runInTransaction(async (transaction) => {
       const reservation = await this.findForTransition(id, transaction);
       if (reservation.status !== ReservationStatus.CHECKED_IN) {
         throw invalidTransition(`No se puede hacer check-out de una reserva en estado "${reservation.status}".`);
       }
+      const {date, time} = hotelNow();
+      const isLate = date > reservation.endDate || (date === reservation.endDate && time > CHECK_OUT_UNTIL);
+      if (isLate && !late) {
+        throw new ConflictError(
+          'Check-out tardío',
+          `El check-out era hasta las ${CHECK_OUT_UNTIL} del ${displayDate(reservation.endDate)}. Confirmá para registrarlo igual.`,
+          'LATE_CHECK_OUT'
+        );
+      }
       await this.setRoomStatus(reservation.roomId, RoomStatus.AVAILABLE, transaction);
       await this.reservations.update(reservation, {status: ReservationStatus.CHECKED_OUT}, {transaction});
     });
     return this.getForReceipt(id);
+  }
+
+  // Una estadía en curso no se borra: la habitación quedaría ocupada sin reserva a la que
+  // hacerle el check-out.
+  async remove(id: number): Promise<void> {
+    await runInTransaction(async (transaction) => {
+      const reservation = await this.findForTransition(id, transaction);
+      if (reservation.status === ReservationStatus.CHECKED_IN) {
+        throw new ConflictError('La estadía está en curso', 'Hacé el check-out antes de eliminar la reserva.');
+      }
+      const unitsUnused = reservation.status !== ReservationStatus.CHECKED_OUT;
+      await reservationAmenityService.removeAllOfReservation(reservation.id, unitsUnused, transaction);
+      await this.reservations.delete(reservation, {transaction});
+    });
   }
 
   async getReceipt(id: number): Promise<Reservation> {
@@ -235,6 +279,31 @@ class ReservationService extends BaseService<Reservation> {
       throw new BadRequestError('Habitación no disponible', 'La habitación ya se encuentra reservada para las fechas seleccionadas.');
     }
     return room;
+  }
+
+  // El check-in es desde las 15:00 del día de inicio (antes de hora, confirmándolo) y hasta
+  // la víspera de la salida: el día de salida la estadía ya terminó.
+  private assertCheckInTime(reservation: Reservation, early: boolean): void {
+    const {date, time} = hotelNow();
+    if (date < reservation.startDate) {
+      throw new BadRequestError(
+        'Todavía no es el día del check-in',
+        `La estadía empieza el ${displayDate(reservation.startDate)}; el check-in es desde las ${CHECK_IN_FROM} de ese día.`
+      );
+    }
+    if (date >= reservation.endDate) {
+      throw new BadRequestError(
+        'La estadía ya terminó',
+        `La salida era el ${displayDate(reservation.endDate)}. Cancelá la reserva o cambiá sus fechas.`
+      );
+    }
+    if (date === reservation.startDate && time < CHECK_IN_FROM && !early) {
+      throw new ConflictError(
+        'Check-in anticipado',
+        `El check-in es desde las ${CHECK_IN_FROM}. Confirmá para registrarlo antes de hora.`,
+        'EARLY_CHECK_IN'
+      );
+    }
   }
 
   private async findForTransition(id: number, transaction: Transaction): Promise<Reservation> {

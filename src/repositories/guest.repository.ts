@@ -24,6 +24,10 @@ class GuestRepository extends BaseRepository<Guest> {
     return this.findOne({where: {userId}, transaction});
   }
 
+  findByDocument(documentNumber: string, transaction?: Transaction): Promise<Guest | null> {
+    return this.findOne({where: {documentNumber}, attributes: ['id'], transaction});
+  }
+
   findByUserIdWithProfile(userId: number): Promise<Guest | null> {
     return this.findOne({where: {userId}, include: profile});
   }

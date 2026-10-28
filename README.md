@@ -178,6 +178,36 @@ check-out: si no, el check-out tardío marcaría como disponible una habitación
 Reservar bloquea la fila de la habitación (`SELECT ... FOR UPDATE`), así que dos pedidos
 simultáneos para la misma habitación no pueden aprobarse los dos.
 
+**Horarios de check-in y check-out** (hora de Argentina). El check-in se acepta desde las 15:00
+del día de inicio hasta la víspera de la salida (un huésped que llega un día después igual entra);
+antes del día de inicio o desde el día de salida se rechaza. El mismo día de inicio antes de las
+15:00 responde `409` con `code: "EARLY_CHECK_IN"`, y el staff lo puede confirmar reenviando
+`{ "early": true }`. El check-out se acepta en cualquier momento después del check-in (salir antes
+está permitido) hasta las 10:00 del día de salida; después responde `409` con
+`code: "LATE_CHECK_OUT"` y se confirma con `{ "late": true }`. No se bloquea del todo porque la
+habitación quedaría trabada como ocupada.
+
+**Qué no se puede borrar.** Una reserva en curso (con check-in hecho): primero hay que hacer el
+check-out. Un huésped, o la cuenta de usuario de un huésped, que tenga reservas pendientes o en
+curso: la respuesta lista cuáles hay que cancelar o cerrar. Al borrar una reserva pendiente o
+cancelada, las unidades de los servicios que tenía vuelven al cupo; las de una estadía ya cerrada
+no, porque se consumieron.
+
+**Servicios cobrados por noche.** La cantidad de un consumo son las unidades que el huésped usa
+cada día, y su importe es `cantidad × precio unitario × noches de la estadía`. Las unidades se
+descuentan del cupo una sola vez, porque quedan tomadas durante toda la reserva. Si el staff
+cambia las fechas de la reserva, los importes de sus consumos se recalculan con las noches nuevas.
+El comprobante muestra cuántas noches se cobraron de cada servicio.
+
+**Registro e inicio de sesión.** El servidor valida cada campo antes de escribir y responde con un
+mensaje por campo en `fields`, que el frontend muestra junto al campo:
+`{ "error": "...", "message": "Revisá los campos marcados.", "fields": { "email": "..." } }`.
+Formato inválido es `400`; usuario, email o documento ya registrados es `409`. El email se guarda
+en minúsculas, así que no se pueden crear dos cuentas que sólo difieran en mayúsculas. El usuario
+debe tener de 3 a 30 caracteres (letras, números, `.`, `-` o `_`), la contraseña al menos 8
+caracteres con letras y números, y el documento de 6 a 15 letras o números. Las credenciales
+incorrectas responden siempre el mismo `401`, exista o no el usuario.
+
 **Tarifas dinámicas (yield management).** El precio de una estadía se calcula noche por noche en
 `services/pricing.service.ts`, cada vez que alguien consulta: parte del precio base de la
 categoría y lo ajustan las reglas de la tabla `ReglasTarifa`, que el staff administra desde la API:
@@ -235,7 +265,7 @@ Endpoints principales (todos bajo el prefijo `/api`):
 | Habitaciones | `GET,POST /rooms` (filtros: `startDate`, `endDate`, `categoryId`, `people`), `GET,PUT,DELETE /rooms/:id` |
 | Categorías de habitación | `GET,POST /room-categories`, `GET,PUT,DELETE /room-categories/:id` |
 | Huéspedes | `POST /guests/register`, `GET /guests/me`, `GET /guests`, `GET,PUT,DELETE /guests/:id` |
-| Reservas | `GET,POST,PUT,DELETE /reservations[/:id]`, `POST /reservations/:id/check-in`, `POST /reservations/:id/check-out` (devuelve el comprobante en PDF), `GET /reservations/:id/receipt`, `POST,GET /reservations/mine`, `POST /reservations/:id/cancel` |
+| Reservas | `GET,POST,PUT,DELETE /reservations[/:id]`, `POST /reservations/:id/check-in` (`{ early: true }` fuera de horario), `POST /reservations/:id/check-out` (devuelve el comprobante en PDF; `{ late: true }` fuera de horario), `GET /reservations/:id/receipt`, `POST,GET /reservations/mine`, `POST /reservations/:id/cancel` |
 | Servicios adicionales | `GET,POST,PUT,DELETE /amenities[/:id]`, `GET,POST,PUT,DELETE /amenity-quotas[/:id]`, `GET,POST,PUT,DELETE /amenity-prices[/:id]` (`?amenityId=&current=true` para el precio vigente), `GET,POST,PUT,DELETE /reservation-amenities[/:id]`, `POST /reservation-amenities/mine` |
 | Tarifas | `GET /pricing/quote?startDate=&endDate=[&categoryId=]` (público: precio de la estadía noche por noche), `GET,POST,PUT,DELETE /pricing-rules[/:id]` (staff) |
 | Ubicaciones | `GET,POST,PUT,DELETE /provinces[/:id]`, `GET,POST,PUT,DELETE /cities[/:id]` (`?provinceId=`) |
