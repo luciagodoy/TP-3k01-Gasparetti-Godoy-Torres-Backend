@@ -1,3 +1,4 @@
+import {Transaction} from 'sequelize';
 import {Amenity, AmenityQuota, ReservationAmenity} from '../entities';
 import {BaseRepository} from './base.repository';
 
@@ -25,6 +26,10 @@ class ReservationAmenityRepository extends BaseRepository<ReservationAmenity> {
 
   findByIdWithQuota(id: number): Promise<ReservationAmenity | null> {
     return this.findById(id, {include: withQuota});
+  }
+
+  findByReservation(reservationId: number, transaction: Transaction): Promise<ReservationAmenity[]> {
+    return this.findAll({where: {reservationId}, transaction});
   }
 }
 

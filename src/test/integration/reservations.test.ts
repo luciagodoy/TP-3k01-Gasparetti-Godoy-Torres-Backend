@@ -1,14 +1,17 @@
-import {describe, it, expect, beforeEach} from 'vitest';
+import {describe, it, expect, beforeEach, afterEach, vi} from 'vitest';
 import request from 'supertest';
 import app from '../../app';
 import {
   AdjustmentType,
+  Amenity,
+  AmenityQuota,
   City,
   Guest,
   PricingRule,
   PricingRuleType,
   Province,
   Reservation,
+  ReservationAmenity,
   ReservationStatus,
   Role,
   Room,
@@ -54,6 +57,15 @@ const login = async (username: string) => {
   return res.body.token as string;
 };
 
+const useHotelClock = () => {
+  beforeEach(() => {
+    vi.useFakeTimers({toFake: ['Date']});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+};
+
 describe('Reservations', () => {
   let adminToken: string;
 
@@ -61,6 +73,14 @@ describe('Reservations', () => {
     await User.create({username: 'admin1', email: 'admin1@example.com', password: 'clave123', role: Role.ADMIN});
     adminToken = await login('admin1');
   });
+
+  // Pone el reloj en una fecha y hora de Argentina (UTC-3). Sólo se falsea Date, así
+  // siguen funcionando los timers de los que depende supertest. El token se renueva
+  // porque el JWT dura un día y vencería al mover el reloj.
+  const atHotel = async (date: string, time: string) => {
+    vi.setSystemTime(new Date(`${date}T${time}:00-03:00`));
+    adminToken = await login('admin1');
+  };
 
   describe('POST /api/reservations validation', () => {
     it('answers 400, not 500, when fields are missing', async () => {
@@ -153,16 +173,20 @@ describe('Reservations', () => {
   });
 
   describe('check-in / check-out flow', () => {
+    useHotelClock();
+
     it('check-in occupies the room and check-out frees it and returns the PDF receipt', async () => {
       const reservation = await createPendingReservation();
-      const auth = {Authorization: `Bearer ${adminToken}`};
+      // Función y no objeto: el token cambia cada vez que se mueve el reloj.
+      const auth = () => ({Authorization: `Bearer ${adminToken}`});
+      await atHotel('2026-11-01', '16:00');
 
-      const checkIn = await request(app).post(`/api/reservations/${reservation.id}/check-in`).set(auth);
+      const checkIn = await request(app).post(`/api/reservations/${reservation.id}/check-in`).set(auth());
       expect(checkIn.status).toBe(200);
       expect(checkIn.body.reservation.status).toBe(ReservationStatus.CHECKED_IN);
       expect((await Room.findByPk(reservation.roomId))?.status).toBe(RoomStatus.OCCUPIED);
 
-      const checkOut = await request(app).post(`/api/reservations/${reservation.id}/check-out`).set(auth);
+      const checkOut = await request(app).post(`/api/reservations/${reservation.id}/check-out`).set(auth());
       expect(checkOut.status).toBe(200);
       expect(checkOut.headers['content-type']).toBe('application/pdf');
       expect((await Room.findByPk(reservation.roomId))?.status).toBe(RoomStatus.AVAILABLE);
@@ -178,17 +202,21 @@ describe('Reservations', () => {
         guestId: previous.guestId,
         roomId: previous.roomId
       });
-      const auth = {Authorization: `Bearer ${adminToken}`};
-      await request(app).post(`/api/reservations/${previous.id}/check-in`).set(auth);
+      // Función y no objeto: el token cambia cada vez que se mueve el reloj.
+      const auth = () => ({Authorization: `Bearer ${adminToken}`});
+      await atHotel('2026-11-01', '16:00');
+      await request(app).post(`/api/reservations/${previous.id}/check-in`).set(auth());
 
-      const blocked = await request(app).post(`/api/reservations/${next.id}/check-in`).set(auth);
+      // El día del recambio, a la hora del check-in, el huésped anterior todavía no salió.
+      await atHotel('2026-11-03', '16:00');
+      const blocked = await request(app).post(`/api/reservations/${next.id}/check-in`).set(auth());
       expect(blocked.status).toBe(400);
       expect(blocked.body.error).toBe('Habitación ocupada');
       await next.reload();
       expect(next.status).toBe(ReservationStatus.PENDING);
 
-      await request(app).post(`/api/reservations/${previous.id}/check-out`).set(auth);
-      const allowed = await request(app).post(`/api/reservations/${next.id}/check-in`).set(auth);
+      await request(app).post(`/api/reservations/${previous.id}/check-out`).set(auth()).send({late: true});
+      const allowed = await request(app).post(`/api/reservations/${next.id}/check-in`).set(auth());
       expect(allowed.status).toBe(200);
       expect((await Room.findByPk(next.roomId))?.status).toBe(RoomStatus.OCCUPIED);
     });
@@ -200,6 +228,176 @@ describe('Reservations', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Transición inválida');
+    });
+  });
+
+  // Regla de negocio: check-in desde las 15:00 del día de inicio, check-out hasta las 10:00
+  // del día de salida, en la hora de Argentina. Fuera de horario el staff puede confirmarlo.
+  describe('check-in and check-out times', () => {
+    useHotelClock();
+
+    const post = (path: string, body: object = {}) => request(app).post(path).set('Authorization', `Bearer ${adminToken}`).send(body);
+
+    // Reserva del 2026-11-01 al 2026-11-03, ya con check-in hecho.
+    const checkedIn = async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_IN});
+      await Room.update({status: RoomStatus.OCCUPIED}, {where: {id: reservation.roomId}});
+      return reservation;
+    };
+
+    it('rejects a check-in before the first day of the stay', async () => {
+      const reservation = await createPendingReservation();
+      await atHotel('2026-10-31', '16:00');
+
+      const res = await post(`/api/reservations/${reservation.id}/check-in`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Todavía no es el día del check-in');
+    });
+
+    it('asks to confirm a check-in before 15:00 of the first day, and accepts it confirmed', async () => {
+      const reservation = await createPendingReservation();
+      await atHotel('2026-11-01', '14:59');
+
+      const early = await post(`/api/reservations/${reservation.id}/check-in`);
+      expect(early.status).toBe(409);
+      expect(early.body.code).toBe('EARLY_CHECK_IN');
+      await reservation.reload();
+      expect(reservation.status).toBe(ReservationStatus.PENDING);
+
+      const confirmed = await post(`/api/reservations/${reservation.id}/check-in`, {early: true});
+      expect(confirmed.status).toBe(200);
+    });
+
+    it.each([
+      ['at 15:00 of the first day', '2026-11-01', '15:00'],
+      ['a guest who arrives a day later', '2026-11-02', '09:00']
+    ])('accepts the check-in of %s', async (_case, date, time) => {
+      const reservation = await createPendingReservation();
+      await atHotel(date, time);
+
+      expect((await post(`/api/reservations/${reservation.id}/check-in`)).status).toBe(200);
+    });
+
+    it('rejects a check-in on the departure day: the stay is over', async () => {
+      const reservation = await createPendingReservation();
+      await atHotel('2026-11-03', '08:00');
+
+      const res = await post(`/api/reservations/${reservation.id}/check-in`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('La estadía ya terminó');
+    });
+
+    it.each([
+      ['an early departure', '2026-11-02', '18:00'],
+      ['10:00 of the departure day', '2026-11-03', '10:00']
+    ])('accepts the check-out of %s', async (_case, date, time) => {
+      const reservation = await checkedIn();
+      await atHotel(date, time);
+
+      expect((await post(`/api/reservations/${reservation.id}/check-out`)).status).toBe(200);
+    });
+
+    it.each([
+      ['after 10:00 of the departure day', '2026-11-03', '10:01'],
+      ['the day after the departure', '2026-11-04', '09:00']
+    ])('asks to confirm a check-out %s, and accepts it confirmed', async (_case, date, time) => {
+      const reservation = await checkedIn();
+      await atHotel(date, time);
+
+      const late = await post(`/api/reservations/${reservation.id}/check-out`);
+      expect(late.status).toBe(409);
+      expect(late.body.code).toBe('LATE_CHECK_OUT');
+      await reservation.reload();
+      expect(reservation.status).toBe(ReservationStatus.CHECKED_IN);
+
+      const confirmed = await post(`/api/reservations/${reservation.id}/check-out`, {late: true});
+      expect(confirmed.status).toBe(200);
+      expect((await Room.findByPk(reservation.roomId))?.status).toBe(RoomStatus.AVAILABLE);
+    });
+  });
+
+  describe('deleting reservations, guests and users', () => {
+    const del = (path: string) => request(app).delete(path).set('Authorization', `Bearer ${adminToken}`);
+
+    // Un consumo de 2 unidades de un cupo de 10 (quedan 8 disponibles).
+    const consume = async (reservationId: number) => {
+      const amenity = await Amenity.create({name: 'Spa', description: null});
+      const quota = await AmenityQuota.create({quantity: 10, available: 8, amenityId: amenity.id});
+      await ReservationAmenity.create({quantity: 2, unitPrice: 5000, totalAmount: 10000, reservationId, quotaId: quota.id});
+      return quota;
+    };
+
+    it('rejects deleting a stay in progress and leaves it untouched', async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_IN});
+
+      const res = await del(`/api/reservations/${reservation.id}`);
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe('La estadía está en curso');
+      expect(await Reservation.findByPk(reservation.id)).not.toBeNull();
+    });
+
+    // Regresión: los consumos se borraban en cascada sin devolver las unidades al cupo.
+    it('deleting a pending reservation gives its amenity units back to the quota', async () => {
+      const reservation = await createPendingReservation();
+      const quota = await consume(reservation.id);
+
+      expect((await del(`/api/reservations/${reservation.id}`)).status).toBe(204);
+
+      await quota.reload();
+      expect(quota.available).toBe(10);
+      expect(await ReservationAmenity.count({where: {reservationId: reservation.id}})).toBe(0);
+    });
+
+    it('deleting a finished stay keeps its consumed units used', async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_OUT});
+      const quota = await consume(reservation.id);
+
+      expect((await del(`/api/reservations/${reservation.id}`)).status).toBe(204);
+
+      await quota.reload();
+      expect(quota.available).toBe(8);
+    });
+
+    it.each([
+      ['pending', ReservationStatus.PENDING],
+      ['in progress', ReservationStatus.CHECKED_IN]
+    ])('a guest with a %s reservation cannot be deleted, as a guest or as a user', async (_case, status) => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status});
+      const guest = (await Guest.findByPk(reservation.guestId))!;
+
+      const asGuest = await del(`/api/guests/${guest.id}`);
+      expect(asGuest.status).toBe(409);
+      expect(asGuest.body.error).toBe('El huésped tiene reservas activas');
+      expect(asGuest.body.message).toContain(`#${reservation.id}`);
+
+      const asUser = await del(`/api/users/${guest.userId}`);
+      expect(asUser.status).toBe(409);
+
+      expect(await Guest.findByPk(guest.id)).not.toBeNull();
+      expect(await User.findByPk(guest.userId)).not.toBeNull();
+    });
+
+    it('a guest whose reservations are cancelled or finished can be deleted', async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_OUT});
+      await Reservation.create({
+        startDate: '2026-12-01',
+        endDate: '2026-12-02',
+        status: ReservationStatus.CANCELLED,
+        totalAmount: 50000,
+        guestId: reservation.guestId,
+        roomId: reservation.roomId
+      });
+
+      expect((await del(`/api/guests/${reservation.guestId}`)).status).toBe(204);
+      expect(await Guest.findByPk(reservation.guestId)).toBeNull();
     });
   });
 
@@ -270,6 +468,104 @@ describe('Reservations', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.map((room: {id: number}) => room.id)).toContain(reservation.roomId);
+    });
+
+    it('staff can book, or move a reservation to, a stay that touches another on the turnover day', async () => {
+      const reservation = await createPendingReservation(); // 2026-11-01 -> 2026-11-03
+      const staff = request(app);
+      const auth = {Authorization: `Bearer ${adminToken}`};
+
+      const next = await staff
+        .post('/api/reservations')
+        .set(auth)
+        .send({guestId: reservation.guestId, roomId: reservation.roomId, startDate: '2026-11-03', endDate: '2026-11-04'});
+      expect(next.status).toBe(201);
+
+      const moved = await staff
+        .put(`/api/reservations/${next.body.reservation.id}`)
+        .set(auth)
+        .send({startDate: '2026-11-03', endDate: '2026-11-06'});
+      expect(moved.status).toBe(200);
+    });
+
+    it('a reservation takes one slot on each night of the stay, but not on its checkout day', async () => {
+      const reservation = await createPendingReservation(); // 2026-11-01 -> 2026-11-03, la única habitación
+
+      const res = await request(app).get('/api/pricing/quote').query({startDate: '2026-11-02', endDate: '2026-11-04'});
+
+      expect(res.status).toBe(200);
+      const [quote] = res.body;
+      expect(quote.categoryId).toBe((await Room.findByPk(reservation.roomId))!.categoryId);
+      expect(quote.nights.map((night: {date: string; occupancy: number}) => [night.date, night.occupancy])).toEqual([
+        ['2026-11-02', 100],
+        ['2026-11-03', 0]
+      ]);
+    });
+  });
+
+  // Los servicios se cobran por día de estadía: cantidad x precio x noches.
+  describe('amenities charged per night', () => {
+    const auth = () => ({Authorization: `Bearer ${adminToken}`});
+
+    const spaQuota = async () => {
+      const amenity = await Amenity.create({name: 'Spa', description: null});
+      return AmenityQuota.create({quantity: 10, available: 10, amenityId: amenity.id});
+    };
+
+    it('multiplies the amount by the nights of the stay, and takes the units once from the quota', async () => {
+      const reservation = await createPendingReservation(); // 2 noches
+      const quota = await spaQuota();
+
+      const res = await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 2, unitPrice: 5000});
+
+      expect(res.status).toBe(201);
+      expect(Number(res.body.totalAmount)).toBe(20000); // 2 x 5000 x 2 noches
+      await quota.reload();
+      expect(quota.available).toBe(8);
+    });
+
+    it('recomputes the amount when the quantity changes', async () => {
+      const reservation = await createPendingReservation();
+      const quota = await spaQuota();
+      const created = await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 1, unitPrice: 5000});
+
+      const res = await request(app).put(`/api/reservation-amenities/${created.body.id}`).set(auth()).send({quantity: 3});
+
+      expect(Number(res.body.totalAmount)).toBe(30000); // 3 x 5000 x 2 noches
+    });
+
+    it('reprices the consumptions when the stay changes length', async () => {
+      const reservation = await createPendingReservation();
+      const quota = await spaQuota();
+      const created = await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 1, unitPrice: 5000});
+
+      const res = await request(app).put(`/api/reservations/${reservation.id}`).set(auth()).send({endDate: '2026-11-05'});
+
+      expect(res.status).toBe(200);
+      const consumption = await ReservationAmenity.findByPk(created.body.id);
+      expect(Number(consumption!.totalAmount)).toBe(20000); // 1 x 5000 x 4 noches
+    });
+
+    it('rejects a consumption for a reservation that does not exist', async () => {
+      const quota = await spaQuota();
+
+      const res = await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: 9999, quotaId: quota.id, quantity: 1, unitPrice: 5000});
+
+      expect(res.status).toBe(404);
+      await quota.reload();
+      expect(quota.available).toBe(10);
     });
   });
 });

@@ -1,9 +1,10 @@
 import {Transaction} from 'sequelize';
-import {ReservationAmenity} from '../entities';
+import {Reservation, ReservationAmenity} from '../entities';
 import {amenityQuotaRepository} from '../repositories/amenity-quota.repository';
 import {reservationAmenityRepository, ReservationAmenitySearch} from '../repositories/reservation-amenity.repository';
 import {reservationRepository} from '../repositories/reservation.repository';
 import {runInTransaction} from '../repositories/transaction';
+import {calculateNights} from '../shared/dates';
 import {BadRequestError, NotFoundError} from '../shared/errors';
 import {amenityPriceService} from './amenity-price.service';
 import {guestService} from './guest.service';
@@ -28,8 +29,14 @@ export interface ConsumptionUpdate {
 
 const NOT_FOUND = 'Consumo de servicio no encontrado';
 const QUOTA_NOT_FOUND = 'Cupo no encontrado';
+const RESERVATION_NOT_FOUND = 'Reserva no encontrada';
 
-// Servicios consumidos durante una reserva. Toda escritura mantiene sincronizado el
+// Los servicios se cobran por día de estadía: `quantity` son las unidades que se usan
+// cada día, y quedan tomadas del cupo durante toda la reserva.
+const nightsOf = (reservation: Reservation): number => calculateNights(reservation.startDate, reservation.endDate);
+const totalFor = (quantity: number, unitPrice: number, nights: number): number => Math.round(quantity * unitPrice * nights * 100) / 100;
+
+// Servicios consumidos durante una reserva, cobrados por noche. Toda escritura mantiene sincronizado el
 // contador `available` del cupo dentro de la misma transacción.
 class ReservationAmenityService {
   constructor(
@@ -50,9 +57,11 @@ class ReservationAmenityService {
 
   // Alta por el staff: el precio unitario viene en el request (p. ej. un precio negociado).
   createAsStaff(input: StaffConsumptionInput): Promise<ReservationAmenity> {
-    return runInTransaction((transaction) =>
-      this.register(input.reservationId, input.quotaId, input.quantity, input.unitPrice, transaction)
-    );
+    return runInTransaction(async (transaction) => {
+      const reservation = await this.reservations.findById(input.reservationId, {transaction});
+      if (!reservation) throw new NotFoundError(RESERVATION_NOT_FOUND);
+      return this.register(reservation, input.quotaId, input.quantity, input.unitPrice, transaction);
+    });
   }
 
   createForGuest(userId: number, input: GuestConsumptionInput): Promise<ReservationAmenity> {
@@ -60,7 +69,7 @@ class ReservationAmenityService {
       const guestId = await guestService.requireGuestIdOfUser(userId, transaction);
 
       const reservation = await this.reservations.findById(input.reservationId, {transaction});
-      if (!reservation || reservation.guestId !== guestId) throw new NotFoundError('Reserva no encontrada');
+      if (!reservation || reservation.guestId !== guestId) throw new NotFoundError(RESERVATION_NOT_FOUND);
 
       const quota = await this.quotas.findById(input.quotaId, {transaction});
       if (!quota) throw new NotFoundError(QUOTA_NOT_FOUND);
@@ -68,7 +77,7 @@ class ReservationAmenityService {
       const currentPrice = await amenityPriceService.findCurrentPrice(quota.amenityId);
       if (!currentPrice) throw new BadRequestError('El servicio no tiene un precio vigente configurado');
 
-      return this.register(input.reservationId, input.quotaId, input.quantity, currentPrice.price, transaction);
+      return this.register(reservation, input.quotaId, input.quantity, currentPrice.price, transaction);
     });
   }
 
@@ -86,17 +95,17 @@ class ReservationAmenityService {
 
         const available = quota.available + (consumption.quantity - quantity);
         if (available < 0 || available > quota.quantity) {
-          throw new BadRequestError(
-            'Cupo insuficiente',
-            'No hay suficiente disponibilidad para la nueva cantidad solicitada.'
-          );
+          throw new BadRequestError('Cupo insuficiente', 'No hay suficiente disponibilidad para la nueva cantidad solicitada.');
         }
         await this.quotas.update(quota, {available}, {transaction});
       }
 
+      const reservation = await this.reservations.findById(consumption.reservationId, {transaction});
+      if (!reservation) throw new NotFoundError(RESERVATION_NOT_FOUND);
+
       return this.consumptions.update(
         consumption,
-        {quantity, unitPrice, totalAmount: quantity * unitPrice},
+        {quantity, unitPrice, totalAmount: totalFor(quantity, Number(unitPrice), nightsOf(reservation))},
         {transaction}
       );
     });
@@ -115,8 +124,29 @@ class ReservationAmenityService {
     });
   }
 
+  // Borra los consumos de una reserva que se elimina. Las unidades vuelven al cupo sólo si
+  // el servicio no llegó a usarse (reserva pendiente o cancelada): los de una estadía ya
+  // cerrada se consumieron de verdad.
+  async removeAllOfReservation(reservationId: number, returnUnits: boolean, transaction: Transaction): Promise<void> {
+    for (const consumption of await this.consumptions.findByReservation(reservationId, transaction)) {
+      if (returnUnits) {
+        const quota = await this.quotas.findByIdForUpdate(consumption.quotaId, {transaction});
+        if (quota) await this.quotas.update(quota, {available: quota.available + consumption.quantity}, {transaction});
+      }
+      await this.consumptions.delete(consumption, {transaction});
+    }
+  }
+
+  // Recalcula los totales de los consumos cuando la reserva cambia de fechas.
+  async repriceForStay(reservationId: number, nights: number, transaction: Transaction): Promise<void> {
+    for (const consumption of await this.consumptions.findByReservation(reservationId, transaction)) {
+      const totalAmount = totalFor(consumption.quantity, Number(consumption.unitPrice), nights);
+      await this.consumptions.update(consumption, {totalAmount}, {transaction});
+    }
+  }
+
   private async register(
-    reservationId: number,
+    reservation: Reservation,
     quotaId: number,
     quantity: number,
     unitPrice: number,
@@ -129,7 +159,13 @@ class ReservationAmenityService {
     }
 
     const consumption = await this.consumptions.create(
-      {reservationId, quotaId, quantity, unitPrice, totalAmount: quantity * unitPrice},
+      {
+        reservationId: reservation.id,
+        quotaId,
+        quantity,
+        unitPrice,
+        totalAmount: totalFor(quantity, unitPrice, nightsOf(reservation))
+      },
       {transaction}
     );
     await this.quotas.update(quota, {available: quota.available - quantity}, {transaction});

@@ -1,9 +1,12 @@
 import {Transaction} from 'sequelize';
 import {Guest, Role} from '../entities';
 import {guestRepository} from '../repositories/guest.repository';
+import {reservationRepository} from '../repositories/reservation.repository';
 import {runInTransaction} from '../repositories/transaction';
 import {userRepository} from '../repositories/user.repository';
-import {BadRequestError, NotFoundError} from '../shared/errors';
+import {cityRepository} from '../repositories/city.repository';
+import {normalizeEmail, trimmed, validateRegistration} from '../shared/account-rules';
+import {BadRequestError, ConflictError, FieldErrors, InvalidFieldsError, NotFoundError} from '../shared/errors';
 import {pickDefined} from '../shared/http';
 import {BaseService} from './base.service';
 
@@ -39,18 +42,38 @@ class GuestService extends BaseService<Guest> {
   }
 
   // Autoregistro: la cuenta y su perfil de huésped se crean juntos o no se crea ninguno.
+  // Antes de escribir se valida cada campo, para responder con un mensaje por campo en vez
+  // del error genérico de la base de datos.
   register(input: GuestRegistration): Promise<Guest> {
+    const invalid = validateRegistration(input);
+    if (Object.keys(invalid).length > 0) throw new InvalidFieldsError('Datos de registro inválidos', invalid);
+
+    const username = trimmed(input.username);
+    const email = normalizeEmail(input.email);
+    const documentNumber = trimmed(input.documentNumber);
+
     return runInTransaction(async (transaction) => {
-      const user = await this.users.create(
-        {username: input.username, email: input.email, password: input.password, role: Role.GUEST},
-        {transaction}
-      );
+      const [sameUsername, sameEmail, sameDocument, city] = await Promise.all([
+        this.users.findByUsername(username, transaction),
+        this.users.findByEmail(email, transaction),
+        this.guests.findByDocument(documentNumber, transaction),
+        cityRepository.findById(Number(input.cityId), {transaction})
+      ]);
+      const taken: FieldErrors = {
+        ...(sameUsername && {username: 'Ese nombre de usuario ya está en uso.'}),
+        ...(sameEmail && {email: 'Ya existe una cuenta con ese email.'}),
+        ...(sameDocument && {documentNumber: 'Ya hay un huésped registrado con ese documento.'})
+      };
+      if (Object.keys(taken).length > 0) throw new InvalidFieldsError('La cuenta ya existe', taken, 409);
+      if (!city) throw new InvalidFieldsError('Datos de registro inválidos', {cityId: 'La ciudad elegida no existe.'});
+
+      const user = await this.users.create({username, email, password: input.password, role: Role.GUEST}, {transaction});
       return this.guests.create(
         {
-          phone: input.phone ?? null,
-          documentNumber: input.documentNumber,
-          cityId: input.cityId,
-          country: input.country || 'Argentina',
+          phone: trimmed(input.phone) || null,
+          documentNumber,
+          cityId: city.id,
+          country: trimmed(input.country) || 'Argentina',
           userId: user.id
         },
         {transaction}
@@ -88,10 +111,26 @@ class GuestService extends BaseService<Guest> {
 
   // Borra la cuenta completa; el perfil de huésped se va con ella (ON DELETE CASCADE).
   async remove(id: number): Promise<void> {
-    const guest = await this.getById(id);
-    const user = await this.users.findById(guest.userId);
-    if (!user) throw new BadRequestError('No se puede eliminar el huésped', 'La cuenta asociada no existe.');
-    await this.users.delete(user);
+    await runInTransaction(async (transaction) => {
+      const guest = await this.guests.findById(id, {transaction});
+      if (!guest) throw new NotFoundError(this.notFoundMessage);
+      await this.assertNoActiveReservations(guest.id, transaction);
+      const user = await this.users.findById(guest.userId, {transaction});
+      if (!user) throw new BadRequestError('No se puede eliminar el huésped', 'La cuenta asociada no existe.');
+      await this.users.delete(user, {transaction});
+    });
+  }
+
+  // Con reservas pendientes o en curso no se borra: quedarían reservas sin huésped que
+  // siguen bloqueando habitaciones, o una habitación ocupada sin nadie que haga el check-out.
+  async assertNoActiveReservations(guestId: number, transaction: Transaction): Promise<void> {
+    const active = await reservationRepository.findActiveByGuest(guestId, transaction);
+    if (active.length === 0) return;
+    const ids = active.map((reservation) => `#${reservation.id}`).join(', ');
+    throw new ConflictError(
+      'El huésped tiene reservas activas',
+      `Reservas pendientes o en curso: ${ids}. Cancelalas o hacé el check-out antes de eliminarlo.`
+    );
   }
 }
 
