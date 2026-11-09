@@ -21,7 +21,9 @@ export interface RegistrationFields {
   cityId?: unknown;
 }
 
-export const trimmed = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+// Un número (p. ej. un teléfono enviado sin comillas) se toma como texto en vez de descartarse.
+export const trimmed = (value: unknown): string =>
+  typeof value === 'string' ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
 
 // El email se guarda en minúsculas para que 'Ana@Mail.com' y 'ana@mail.com' sean la misma cuenta.
 export const normalizeEmail = (email: unknown): string => trimmed(email).toLowerCase();

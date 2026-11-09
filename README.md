@@ -191,13 +191,16 @@ habitación quedaría trabada como ocupada.
 check-out. Un huésped, o la cuenta de usuario de un huésped, que tenga reservas pendientes o en
 curso: la respuesta lista cuáles hay que cancelar o cerrar. Al borrar una reserva pendiente o
 cancelada, las unidades de los servicios que tenía vuelven al cupo; las de una estadía ya cerrada
-no, porque se consumieron.
+no, porque se consumieron. Cancelar una reserva (el staff o el huésped) también devuelve al cupo
+sus servicios en el momento. Una reserva cerrada o cancelada no admite cambios de fechas ni de
+habitación.
 
 **Servicios cobrados por noche.** La cantidad de un consumo son las unidades que el huésped usa
 cada día, y su importe es `cantidad × precio unitario × noches de la estadía`. Las unidades se
 descuentan del cupo una sola vez, porque quedan tomadas durante toda la reserva. Si el staff
 cambia las fechas de la reserva, los importes de sus consumos se recalculan con las noches nuevas.
-El comprobante muestra cuántas noches se cobraron de cada servicio.
+El comprobante muestra cuántas noches se cobraron de cada servicio. Sólo se cargan o modifican
+consumos de reservas pendientes o en curso.
 
 **Registro e inicio de sesión.** El servidor valida cada campo antes de escribir y responde con un
 mensaje por campo en `fields`, que el frontend muestra junto al campo:
