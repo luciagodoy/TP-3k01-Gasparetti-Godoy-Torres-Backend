@@ -120,6 +120,13 @@ class ReservationService extends BaseService<Reservation> {
       const startDate = input.startDate ?? reservation.startDate;
       const endDate = input.endDate ?? reservation.endDate;
       const roomId = input.roomId ?? reservation.roomId;
+      const isClosed = reservation.status === ReservationStatus.CHECKED_OUT || reservation.status === ReservationStatus.CANCELLED;
+      const staysChange = startDate !== reservation.startDate || endDate !== reservation.endDate || roomId !== reservation.roomId;
+      // Una estadía cerrada ya tiene comprobante, y una cancelada no ocupa la habitación:
+      // moverlas cambiaría lo cobrado o volvería a bloquear la habitación.
+      if (isClosed && staysChange) {
+        throw invalidTransition(`No se pueden cambiar las fechas ni la habitación de una reserva en estado "${reservation.status}".`);
+      }
       if (input.startDate !== undefined || input.endDate !== undefined || input.roomId !== undefined) {
         await this.assertRoomIsFree(roomId, startDate, endDate, reservation.id, transaction);
       }
@@ -127,6 +134,8 @@ class ReservationService extends BaseService<Reservation> {
       if (startDate !== reservation.startDate || endDate !== reservation.endDate) {
         await reservationAmenityService.repriceForStay(reservation.id, assertValidRange(startDate, endDate), transaction);
       }
+
+      if (isCancellation) await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
 
       return this.reservations.update(
         reservation,
@@ -258,6 +267,8 @@ class ReservationService extends BaseService<Reservation> {
       if (reservation.status !== ReservationStatus.PENDING) {
         throw invalidTransition(`No se puede cancelar una reserva en estado "${reservation.status}".`);
       }
+      // Los servicios reservados vuelven al cupo: sin estadía no se usan.
+      await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
       return this.reservations.update(reservation, {status: ReservationStatus.CANCELLED}, {transaction});
     });
   }
@@ -306,8 +317,10 @@ class ReservationService extends BaseService<Reservation> {
     }
   }
 
+  // Bloquea la fila: dos transiciones simultáneas (p. ej. borrar y hacer check-in) no pueden
+  // validar las dos sobre el mismo estado.
   private async findForTransition(id: number, transaction: Transaction): Promise<Reservation> {
-    const reservation = await this.reservations.findById(id, {transaction});
+    const reservation = await this.reservations.findById(id, {transaction, lock: transaction.LOCK.UPDATE});
     if (!reservation) throw new NotFoundError(NOT_FOUND);
     return reservation;
   }

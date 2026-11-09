@@ -112,7 +112,8 @@ class GuestService extends BaseService<Guest> {
   // Borra la cuenta completa; el perfil de huésped se va con ella (ON DELETE CASCADE).
   async remove(id: number): Promise<void> {
     await runInTransaction(async (transaction) => {
-      const guest = await this.guests.findById(id, {transaction});
+      // Bloquea al huésped: una reserva nueva para él tiene que esperar a que termine el borrado.
+      const guest = await this.guests.findById(id, {transaction, lock: transaction.LOCK.UPDATE});
       if (!guest) throw new NotFoundError(this.notFoundMessage);
       await this.assertNoActiveReservations(guest.id, transaction);
       const user = await this.users.findById(guest.userId, {transaction});

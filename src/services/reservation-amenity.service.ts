@@ -1,5 +1,5 @@
 import {Transaction} from 'sequelize';
-import {Reservation, ReservationAmenity} from '../entities';
+import {Reservation, ReservationAmenity, ReservationStatus} from '../entities';
 import {amenityQuotaRepository} from '../repositories/amenity-quota.repository';
 import {reservationAmenityRepository, ReservationAmenitySearch} from '../repositories/reservation-amenity.repository';
 import {reservationRepository} from '../repositories/reservation.repository';
@@ -30,6 +30,17 @@ export interface ConsumptionUpdate {
 const NOT_FOUND = 'Consumo de servicio no encontrado';
 const QUOTA_NOT_FOUND = 'Cupo no encontrado';
 const RESERVATION_NOT_FOUND = 'Reserva no encontrada';
+
+// Sólo se cargan o modifican consumos de una reserva vigente: en una cancelada no hay
+// estadía, y en una cerrada ya se emitió el comprobante.
+const assertOpen = (reservation: Reservation): void => {
+  if (reservation.status !== ReservationStatus.PENDING && reservation.status !== ReservationStatus.CHECKED_IN) {
+    throw new BadRequestError(
+      'La reserva no admite consumos',
+      `La reserva está en estado "${reservation.status}": sólo se cargan servicios a reservas pendientes o en curso.`
+    );
+  }
+};
 
 // Los servicios se cobran por día de estadía: `quantity` son las unidades que se usan
 // cada día, y quedan tomadas del cupo durante toda la reserva.
@@ -86,6 +97,10 @@ class ReservationAmenityService {
       const consumption = await this.consumptions.findById(id, {transaction});
       if (!consumption) throw new NotFoundError(NOT_FOUND);
 
+      const reservation = await this.reservations.findById(consumption.reservationId, {transaction});
+      if (!reservation) throw new NotFoundError(RESERVATION_NOT_FOUND);
+      assertOpen(reservation);
+
       const quantity = input.quantity ?? consumption.quantity;
       const unitPrice = input.unitPrice ?? consumption.unitPrice;
 
@@ -99,9 +114,6 @@ class ReservationAmenityService {
         }
         await this.quotas.update(quota, {available}, {transaction});
       }
-
-      const reservation = await this.reservations.findById(consumption.reservationId, {transaction});
-      if (!reservation) throw new NotFoundError(RESERVATION_NOT_FOUND);
 
       return this.consumptions.update(
         consumption,
@@ -124,9 +136,11 @@ class ReservationAmenityService {
     });
   }
 
-  // Borra los consumos de una reserva que se elimina. Las unidades vuelven al cupo sólo si
-  // el servicio no llegó a usarse (reserva pendiente o cancelada): los de una estadía ya
-  // cerrada se consumieron de verdad.
+  // Borra los consumos de una reserva que se elimina o se cancela. Las unidades vuelven al
+  // cupo sólo si el servicio no llegó a usarse (reserva pendiente o cancelada): los de una
+  // estadía ya cerrada se consumieron de verdad. Al cancelar se borran en el momento, así que
+  // al borrar después la reserva cancelada no queda nada por devolver (salvo reservas
+  // canceladas antes de este cambio, cuyas unidades todavía estaban tomadas).
   async removeAllOfReservation(reservationId: number, returnUnits: boolean, transaction: Transaction): Promise<void> {
     for (const consumption of await this.consumptions.findByReservation(reservationId, transaction)) {
       if (returnUnits) {
@@ -152,6 +166,7 @@ class ReservationAmenityService {
     unitPrice: number,
     transaction: Transaction
   ): Promise<ReservationAmenity> {
+    assertOpen(reservation);
     const quota = await this.quotas.findByIdForUpdate(quotaId, {transaction});
     if (!quota) throw new NotFoundError(QUOTA_NOT_FOUND);
     if (quota.available < quantity) {

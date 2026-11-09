@@ -555,6 +555,90 @@ describe('Reservations', () => {
       expect(Number(consumption!.totalAmount)).toBe(20000); // 1 x 5000 x 4 noches
     });
 
+    it.each([
+      ['cancelled', ReservationStatus.CANCELLED],
+      ['finished', ReservationStatus.CHECKED_OUT]
+    ])('rejects a consumption for a %s reservation and keeps the quota', async (_case, status) => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status});
+      const quota = await spaQuota();
+
+      const res = await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 1, unitPrice: 5000});
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('La reserva no admite consumos');
+      await quota.reload();
+      expect(quota.available).toBe(10);
+    });
+
+    it('rejects changing the quantity of a consumption once the stay is finished', async () => {
+      const reservation = await createPendingReservation();
+      const quota = await spaQuota();
+      const created = await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 1, unitPrice: 5000});
+      await reservation.update({status: ReservationStatus.CHECKED_OUT});
+
+      const res = await request(app).put(`/api/reservation-amenities/${created.body.id}`).set(auth()).send({quantity: 3});
+
+      expect(res.status).toBe(400);
+      await quota.reload();
+      expect(quota.available).toBe(9);
+    });
+
+    it('cancelling a reservation gives its amenity units back, and deleting it later does not give them twice', async () => {
+      const reservation = await createPendingReservation();
+      const quota = await spaQuota();
+      await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 3, unitPrice: 5000});
+
+      const cancel = await request(app).put(`/api/reservations/${reservation.id}`).set(auth()).send({status: ReservationStatus.CANCELLED});
+      expect(cancel.status).toBe(200);
+      await quota.reload();
+      expect(quota.available).toBe(10);
+      expect(await ReservationAmenity.count({where: {reservationId: reservation.id}})).toBe(0);
+
+      expect((await request(app).delete(`/api/reservations/${reservation.id}`).set(auth())).status).toBe(204);
+      await quota.reload();
+      expect(quota.available).toBe(10);
+    });
+
+    it('a guest cancelling their own reservation gives the amenity units back', async () => {
+      const reservation = await createPendingReservation();
+      const quota = await spaQuota();
+      await request(app)
+        .post('/api/reservation-amenities')
+        .set(auth())
+        .send({reservationId: reservation.id, quotaId: quota.id, quantity: 2, unitPrice: 5000});
+      const guestToken = await login('guest1');
+
+      const res = await request(app).post(`/api/reservations/${reservation.id}/cancel`).set('Authorization', `Bearer ${guestToken}`);
+
+      expect(res.status).toBe(200);
+      await quota.reload();
+      expect(quota.available).toBe(10);
+    });
+
+    it.each([
+      ['cancelled', ReservationStatus.CANCELLED],
+      ['finished', ReservationStatus.CHECKED_OUT]
+    ])('rejects moving the dates of a %s reservation', async (_case, status) => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status});
+
+      const res = await request(app).put(`/api/reservations/${reservation.id}`).set(auth()).send({endDate: '2026-11-05'});
+
+      expect(res.status).toBe(400);
+      await reservation.reload();
+      expect(reservation.endDate).toBe('2026-11-03');
+    });
+
     it('rejects a consumption for a reservation that does not exist', async () => {
       const quota = await spaQuota();
 

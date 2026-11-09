@@ -62,6 +62,14 @@ describe('Guest registration', () => {
     expect(await User.count()).toBe(1);
   });
 
+  it('keeps a phone sent as a number instead of dropping it', async () => {
+    const res = await register({...validRegistration(), phone: 3415551234});
+
+    expect(res.status).toBe(201);
+    const user = await User.findOne({where: {username: 'ana.perez'}});
+    expect((await Guest.findOne({where: {userId: user!.id}}))?.phone).toBe('3415551234');
+  });
+
   it('rejects a city that does not exist', async () => {
     const res = await register({...validRegistration(), cityId: 9999});
 
