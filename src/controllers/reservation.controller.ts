@@ -1,12 +1,7 @@
 import {Request, Response} from 'express';
 import {Reservation} from '../entities';
 import {renderReceiptPdf} from '../services/receipt-pdf.service';
-import {
-  GuestReservationInput,
-  reservationService,
-  ReservationUpdate,
-  StaffReservationInput
-} from '../services/reservation.service';
+import {GuestReservationInput, reservationService, ReservationUpdate, StaffReservationInput} from '../services/reservation.service';
 import {optionalNumber, parseId} from '../shared/http';
 
 interface ListReservationsQuery {
@@ -73,14 +68,15 @@ export const reservationController = {
     res.status(204).send();
   },
 
-  async checkIn(req: Request<{id: string}>, res: Response): Promise<void> {
-    const reservation = await reservationService.checkIn(parseId(req.params.id));
+  // { early: true } confirma un check-in antes de las 15:00 del día de inicio.
+  async checkIn(req: Request<{id: string}, {}, {early?: unknown}>, res: Response): Promise<void> {
+    const reservation = await reservationService.checkIn(parseId(req.params.id), {early: req.body.early === true});
     res.json({message: 'Check-in realizado con éxito', reservation});
   },
 
-  // Responde con el comprobante en PDF.
-  async checkOut(req: Request<{id: string}>, res: Response): Promise<void> {
-    sendReceipt(res, await reservationService.checkOut(parseId(req.params.id)));
+  // Responde con el comprobante en PDF. { late: true } confirma un check-out tardío.
+  async checkOut(req: Request<{id: string}, {}, {late?: unknown}>, res: Response): Promise<void> {
+    sendReceipt(res, await reservationService.checkOut(parseId(req.params.id), {late: req.body.late === true}));
   },
 
   async downloadReceipt(req: Request<{id: string}>, res: Response): Promise<void> {

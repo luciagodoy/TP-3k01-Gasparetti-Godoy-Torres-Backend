@@ -1,6 +1,6 @@
 import {ErrorRequestHandler, RequestHandler} from 'express';
 import {ForeignKeyConstraintError, UniqueConstraintError, ValidationError} from 'sequelize';
-import {AppError, errorDetail} from '../shared/errors';
+import {AppError, errorDetail, InvalidFieldsError} from '../shared/errors';
 
 export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({error: 'Recurso no encontrado'});
@@ -8,11 +8,17 @@ export const notFoundHandler: RequestHandler = (_req, res) => {
 
 // Único lugar que convierte errores en respuestas HTTP. Express 5 reenvía acá las
 // promesas rechazadas de los handlers async, así que los controladores no necesitan try/catch.
-// Forma de la respuesta: { error, message?, details? } donde `message` le explica el
+// Forma de la respuesta: { error, message?, code?, fields?, details? } donde `fields` trae
+// el mensaje de cada campo inválido de un formulario, `message` le explica el
 // error al usuario y `details` es información de depuración (nunca en producción).
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   if (error instanceof AppError) {
-    res.status(error.status).json({error: error.message, ...(error.detail && {message: error.detail})});
+    res.status(error.status).json({
+      error: error.message,
+      ...(error.detail && {message: error.detail}),
+      ...(error.code && {code: error.code}),
+      ...(error instanceof InvalidFieldsError && {fields: error.fields})
+    });
     return;
   }
   // Debe verificarse antes que ValidationError: es una subclase de ese.

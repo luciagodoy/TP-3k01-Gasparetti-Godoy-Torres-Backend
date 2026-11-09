@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import {Reservation} from '../entities';
+import {calculateNights} from '../shared/dates';
 
 const COLUMNS = {concept: 50, quantity: 280, unitPrice: 350, subtotal: 450};
 const LINE_END = 550;
@@ -10,6 +11,7 @@ export function renderReceiptPdf(reservation: Reservation, output: NodeJS.Writab
   const room = reservation.room;
   const user = reservation.guest?.user;
   const consumptions = reservation.consumedAmenities ?? [];
+  const nights = calculateNights(reservation.startDate, reservation.endDate);
 
   const doc = new PDFDocument({size: 'A4', margin: 50});
   doc.pipe(output);
@@ -33,7 +35,7 @@ export function renderReceiptPdf(reservation: Reservation, output: NodeJS.Writab
   doc.fontSize(12).text('Detalle de consumos', {underline: true});
   doc.moveDown(0.5);
   doc.fontSize(10);
-  writeRow(doc, ['Concepto', 'Cant.', 'P. Unitario', 'Subtotal']);
+  writeRow(doc, ['Concepto', 'Cant./día', 'P. Unitario', 'Subtotal']);
   doc.moveDown(0.5);
   doc.moveTo(COLUMNS.concept, doc.y).lineTo(LINE_END, doc.y).stroke();
   doc.moveDown(0.5);
@@ -47,7 +49,8 @@ export function renderReceiptPdf(reservation: Reservation, output: NodeJS.Writab
     const amount = Number(consumption.totalAmount);
     total += amount;
     const name = consumption.quota?.amenity?.name ?? `Servicio #${consumption.quotaId}`;
-    writeRow(doc, [name, String(consumption.quantity), Number(consumption.unitPrice).toFixed(2), amount.toFixed(2)]);
+    const perNight = `${name} (${nights} ${nights === 1 ? 'noche' : 'noches'})`;
+    writeRow(doc, [perNight, String(consumption.quantity), Number(consumption.unitPrice).toFixed(2), amount.toFixed(2)]);
     doc.moveDown();
   }
 
