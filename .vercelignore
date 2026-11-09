@@ -1,6 +1,7 @@
 # Lo que no debe subirse en un "vercel deploy" desde la máquina local.
 # Los secretos (.env, el CA de Aiven) van como variables de entorno del proyecto.
-.env
+# Cualquier .env (.env.local, .env.production...: los que crea `vercel env pull`).
+.env*
 certs/
 dist/
 node_modules/
