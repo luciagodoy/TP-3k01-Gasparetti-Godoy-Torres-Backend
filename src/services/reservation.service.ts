@@ -4,7 +4,7 @@ import {reservationRepository, ReservationSearch} from '../repositories/reservat
 import {roomRepository} from '../repositories/room.repository';
 import {runInTransaction} from '../repositories/transaction';
 import {BadRequestError, ConflictError, NotFoundError} from '../shared/errors';
-import {assertValidRange, displayDate, hotelNow} from '../shared/dates';
+import {assertValidRange, displayDate, hotelNow, today} from '../shared/dates';
 import {BaseService} from './base.service';
 import {guestService} from './guest.service';
 import {pricingService} from './pricing.service';
@@ -66,11 +66,13 @@ class ReservationService extends BaseService<Reservation> {
 
   // --- Staff ---
 
-  list(filters: ReservationSearch): Promise<Reservation[]> {
+  async list(filters: ReservationSearch): Promise<Reservation[]> {
+    await this.expireOverdue();
     return this.reservations.search(filters);
   }
 
   async getWithDetails(id: number): Promise<Reservation> {
+    await this.expireOverdue();
     const reservation = await this.reservations.findByIdWithDetails(id);
     if (!reservation) throw new NotFoundError(NOT_FOUND);
     return reservation;
@@ -151,7 +153,18 @@ class ReservationService extends BaseService<Reservation> {
     });
   }
 
-  checkIn(id: number, {early = false}: CheckInOptions = {}): Promise<Reservation> {
+  async checkIn(id: number, {early = false}: CheckInOptions = {}): Promise<Reservation> {
+    // Si llegó vencida (pendiente y ya es el día de salida), se da de baja en su propia
+    // transacción, para que la baja quede aunque el check-in se rechace.
+    const current = await this.reservations.findById(id);
+    if (current?.status === ReservationStatus.PENDING && current.endDate <= today()) {
+      await this.expireOverdue();
+      throw new BadRequestError(
+        'La reserva venció',
+        `Se dio de baja porque no hubo check-in antes del ${displayDate(current.endDate)}, su fecha de salida.`,
+        'RESERVATION_EXPIRED'
+      );
+    }
     return runInTransaction(async (transaction) => {
       const reservation = await this.findForTransition(id, transaction);
       if (reservation.status !== ReservationStatus.PENDING) {
@@ -255,6 +268,7 @@ class ReservationService extends BaseService<Reservation> {
   }
 
   async listForGuest(userId: number): Promise<Reservation[]> {
+    await this.expireOverdue();
     const guestId = await guestService.requireGuestIdOfUser(userId);
     return this.reservations.findByGuestWithDetails(guestId);
   }
@@ -270,6 +284,24 @@ class ReservationService extends BaseService<Reservation> {
       // Los servicios reservados vuelven al cupo: sin estadía no se usan.
       await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
       return this.reservations.update(reservation, {status: ReservationStatus.CANCELLED}, {transaction});
+    });
+  }
+
+  // --- Baja de reservas vencidas ---
+
+  // Regla de negocio: el check-in se puede hacer hasta las 00:00 del día de salida. Una
+  // reserva pendiente que llega a ese día sin check-in se cancela y sus servicios vuelven
+  // al cupo. La habitación no cambia de estado: una reserva pendiente nunca la ocupó, y al
+  // quedar cancelada deja de bloquear sus fechas. Lo corre el cron diario de las 00:00 y
+  // también cada consulta de reservas, así nunca se ve una vencida aunque el cron falle.
+  async expireOverdue(): Promise<number[]> {
+    return runInTransaction(async (transaction) => {
+      const overdue = await this.reservations.findOverduePending(today(), transaction);
+      for (const reservation of overdue) {
+        await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
+        await this.reservations.update(reservation, {status: ReservationStatus.CANCELLED}, {transaction});
+      }
+      return overdue.map((reservation) => reservation.id);
     });
   }
 
@@ -305,7 +337,8 @@ class ReservationService extends BaseService<Reservation> {
     if (date >= reservation.endDate) {
       throw new BadRequestError(
         'La estadía ya terminó',
-        `La salida era el ${displayDate(reservation.endDate)}. Cancelá la reserva o cambiá sus fechas.`
+        `La salida era el ${displayDate(reservation.endDate)}. Cancelá la reserva o cambiá sus fechas.`,
+        'STAY_ENDED'
       );
     }
     if (date === reservation.startDate && time < CHECK_IN_FROM && !early) {
