@@ -280,14 +280,34 @@ describe('Reservations', () => {
       expect((await post(`/api/reservations/${reservation.id}/check-in`)).status).toBe(200);
     });
 
-    it('rejects a check-in on the departure day: the stay is over', async () => {
+    it('accepts a check-in up to the last minute before the departure day', async () => {
       const reservation = await createPendingReservation();
+      await atHotel('2026-11-02', '23:59');
+
+      expect((await post(`/api/reservations/${reservation.id}/check-in`)).status).toBe(200);
+    });
+
+    it('a check-in on the departure day finds the reservation expired, and leaves it cancelled', async () => {
+      const reservation = await createPendingReservation();
+      await atHotel('2026-11-03', '00:00');
+
+      const res = await post(`/api/reservations/${reservation.id}/check-in`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('RESERVATION_EXPIRED');
+      await reservation.reload();
+      expect(reservation.status).toBe(ReservationStatus.CANCELLED);
+    });
+
+    it('a reservation cancelled by staff is not reported as expired', async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CANCELLED});
       await atHotel('2026-11-03', '08:00');
 
       const res = await post(`/api/reservations/${reservation.id}/check-in`);
 
       expect(res.status).toBe(400);
-      expect(res.body.error).toBe('La estadía ya terminó');
+      expect(res.body.code).toBeUndefined();
     });
 
     it.each([
@@ -398,6 +418,107 @@ describe('Reservations', () => {
 
       expect((await del(`/api/guests/${reservation.guestId}`)).status).toBe(204);
       expect(await Guest.findByPk(reservation.guestId)).toBeNull();
+    });
+  });
+
+  describe('expiring reservations that never checked in', () => {
+    useHotelClock();
+
+    const withSpa = async (reservationId: number) => {
+      const amenity = await Amenity.create({name: 'Spa', description: null});
+      const quota = await AmenityQuota.create({quantity: 10, available: 8, amenityId: amenity.id});
+      await ReservationAmenity.create({quantity: 2, unitPrice: 5000, totalAmount: 20000, reservationId, quotaId: quota.id});
+      return quota;
+    };
+
+    it('listing reservations cancels the pending ones that reached their departure day, and gives back their amenities', async () => {
+      const reservation = await createPendingReservation(); // 2026-11-01 -> 2026-11-03
+      const quota = await withSpa(reservation.id);
+      await atHotel('2026-11-03', '00:01');
+
+      const res = await request(app).get('/api/reservations').set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body[0].status).toBe(ReservationStatus.CANCELLED);
+      await quota.reload();
+      expect(quota.available).toBe(10);
+      const room = await Room.findByPk(reservation.roomId);
+      expect(room!.status).toBe(RoomStatus.AVAILABLE);
+    });
+
+    it('leaves alone a pending reservation the day before departure, and stays in progress', async () => {
+      const pending = await createPendingReservation();
+      const inProgress = await Reservation.create({
+        startDate: '2026-10-28',
+        endDate: '2026-11-02',
+        status: ReservationStatus.CHECKED_IN,
+        totalAmount: 1,
+        guestId: pending.guestId,
+        roomId: pending.roomId
+      });
+      await atHotel('2026-11-02', '23:59');
+
+      await request(app).get('/api/reservations').set('Authorization', `Bearer ${adminToken}`);
+
+      await pending.reload();
+      await inProgress.reload();
+      expect(pending.status).toBe(ReservationStatus.PENDING);
+      expect(inProgress.status).toBe(ReservationStatus.CHECKED_IN);
+    });
+
+    it('the guest sees their expired reservation as cancelled', async () => {
+      const reservation = await createPendingReservation();
+      await atHotel('2026-11-04', '12:00');
+      const guestToken = await login('guest1');
+
+      const res = await request(app).get('/api/reservations/mine').set('Authorization', `Bearer ${guestToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.find((r: {id: number}) => r.id === reservation.id).status).toBe(ReservationStatus.CANCELLED);
+    });
+
+    describe('daily cron', () => {
+      beforeEach(() => {
+        vi.stubEnv('CRON_SECRET', 'cron-test-secret');
+      });
+      afterEach(() => {
+        vi.unstubAllEnvs();
+      });
+
+      it('expires the overdue reservations with the Vercel cron secret', async () => {
+        const reservation = await createPendingReservation();
+        await atHotel('2026-11-03', '00:00');
+
+        const res = await request(app).get('/api/cron/expire-reservations').set('Authorization', 'Bearer cron-test-secret');
+
+        expect(res.status).toBe(200);
+        expect(res.body.expired).toEqual([reservation.id]);
+        await reservation.reload();
+        expect(reservation.status).toBe(ReservationStatus.CANCELLED);
+      });
+
+      it.each([
+        ['without a token', undefined],
+        ['with a wrong secret', 'Bearer otro'],
+        ['with a staff JWT', 'staff']
+      ])('rejects a call %s', async (_case, header) => {
+        const reservation = await createPendingReservation();
+        await atHotel('2026-11-03', '00:00');
+        const req = request(app).get('/api/cron/expire-reservations');
+        if (header) req.set('Authorization', header === 'staff' ? `Bearer ${adminToken}` : header);
+
+        expect((await req).status).toBe(401);
+        await reservation.reload();
+        expect(reservation.status).toBe(ReservationStatus.PENDING);
+      });
+
+      it('stays closed when CRON_SECRET is not configured', async () => {
+        vi.stubEnv('CRON_SECRET', '');
+
+        const res = await request(app).get('/api/cron/expire-reservations').set('Authorization', 'Bearer ');
+
+        expect(res.status).toBe(401);
+      });
     });
   });
 

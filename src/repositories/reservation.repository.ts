@@ -66,6 +66,16 @@ class ReservationRepository extends BaseRepository<Reservation> {
     });
   }
 
+  // Reservas pendientes cuya fecha de fin ya llegó: el huésped nunca hizo el check-in.
+  findOverduePending(today: string, transaction: Transaction): Promise<Reservation[]> {
+    return this.findAll({
+      where: {status: ReservationStatus.PENDING, endDate: {[Op.lte]: today}},
+      order: [['id', 'ASC']],
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+  }
+
   // Las reservas que todavía importan para la operación del hotel: pendientes o en curso.
   findActiveByGuest(guestId: number, transaction?: Transaction): Promise<Reservation[]> {
     return this.findAll({

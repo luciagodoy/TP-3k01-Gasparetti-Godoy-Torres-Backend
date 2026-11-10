@@ -4,6 +4,7 @@ import amenityQuotaRouter from './amenity-quota.routes';
 import amenityRouter from './amenity.routes';
 import authRouter from './auth.routes';
 import cityRouter from './city.routes';
+import cronRouter from './cron.routes';
 import employeeRouter from './employee.routes';
 import guestRouter from './guest.routes';
 import pricingRuleRouter from './pricing-rule.routes';
@@ -32,5 +33,6 @@ apiRouter.use('/provinces', provinceRouter);
 apiRouter.use('/cities', cityRouter);
 apiRouter.use('/employees', employeeRouter);
 apiRouter.use('/users', userRouter);
+apiRouter.use('/cron', cronRouter);
 
 export default apiRouter;
