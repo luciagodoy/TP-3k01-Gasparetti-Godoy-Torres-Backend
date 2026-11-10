@@ -15,8 +15,8 @@ export class AppError extends Error {
 }
 
 export class BadRequestError extends AppError {
-  constructor(message: string, detail?: string) {
-    super(400, message, detail);
+  constructor(message: string, detail?: string, code?: string) {
+    super(400, message, detail, code);
   }
 }
 
