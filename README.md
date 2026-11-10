@@ -31,6 +31,7 @@ cp .env.example .env
   `DB_CA_CERT` con el contenido PEM pegado (para contenedores y plataformas de deploy, donde
   `certs/` no existe porque está en `.gitignore`).
 - `JWT_SECRET` es la clave usada para firmar los tokens de sesión.
+- `CRON_SECRET` protege el cron diario de reservas vencidas (`GET /api/cron/expire-reservations`). Vercel lo envía como `Authorization: Bearer <CRON_SECRET>`; sin esta variable el endpoint responde siempre `401`.
 - `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` son las credenciales de la cuenta
   administradora que el servidor crea automáticamente la primera vez que arranca (ver
   [Cuenta admin inicial](#cuenta-admin-inicial)).
@@ -180,12 +181,19 @@ simultáneos para la misma habitación no pueden aprobarse los dos.
 
 **Horarios de check-in y check-out** (hora de Argentina). El check-in se acepta desde las 15:00
 del día de inicio hasta la víspera de la salida (un huésped que llega un día después igual entra);
-antes del día de inicio o desde el día de salida se rechaza. El mismo día de inicio antes de las
+antes del día de inicio se rechaza. El mismo día de inicio antes de las
 15:00 responde `409` con `code: "EARLY_CHECK_IN"`, y el staff lo puede confirmar reenviando
 `{ "early": true }`. El check-out se acepta en cualquier momento después del check-in (salir antes
 está permitido) hasta las 10:00 del día de salida; después responde `409` con
 `code: "LATE_CHECK_OUT"` y se confirma con `{ "late": true }`. No se bloquea del todo porque la
 habitación quedaría trabada como ocupada.
+
+**Reservas vencidas.** Una reserva pendiente que llega a su día de salida sin check-in (el
+check-in se acepta hasta las 00:00 de ese día) se da de baja: queda `cancelada`, sus servicios
+vuelven al cupo y deja de bloquear la habitación, que nunca llegó a ocuparse. La baja la hace un
+cron diario de Vercel a las 00:00 de Argentina (`vercel.json`), y también cada consulta de
+reservas (listados, detalle y check-in), para que nunca se vea una vencida aunque el cron falle.
+Un check-in sobre una reserva vencida responde `400` con `code: "RESERVATION_EXPIRED"`.
 
 **Qué no se puede borrar.** Una reserva en curso (con check-in hecho): primero hay que hacer el
 check-out. Un huésped, o la cuenta de usuario de un huésped, que tenga reservas pendientes o en
