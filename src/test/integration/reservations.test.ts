@@ -101,6 +101,169 @@ describe('Reservations', () => {
     });
   });
 
+  describe('GET /api/reservations/occupied-today', () => {
+    useHotelClock();
+
+    const stay = (guestId: number, roomId: number, startDate: string, endDate: string, status: ReservationStatus) =>
+      Reservation.create({startDate, endDate, status, totalAmount: 1000, guestId, roomId});
+
+    it('lists checked-in and pending stays that cover today, and leaves out the rest', async () => {
+      await atHotel('2026-11-10', '12:00');
+      const {guest} = await createGuest();
+      const category = await RoomCategory.create({name: 'Standard', description: 'Básica', capacity: 2, imageUrls: [], pricePerNight: 50000});
+      const [r101, r102, r103, r104, r105] = await Promise.all(
+        [101, 102, 103, 104, 105].map((number) => Room.create({number, floor: 1, status: RoomStatus.AVAILABLE, categoryId: category.id}))
+      );
+      const checkedIn = await stay(guest.id, r101.id, '2026-11-09', '2026-11-12', ReservationStatus.CHECKED_IN);
+      const pending = await stay(guest.id, r102.id, '2026-11-10', '2026-11-12', ReservationStatus.PENDING);
+      await stay(guest.id, r103.id, '2026-11-11', '2026-11-13', ReservationStatus.PENDING); // empieza mañana
+      await stay(guest.id, r104.id, '2026-11-08', '2026-11-10', ReservationStatus.CHECKED_OUT);
+      await stay(guest.id, r105.id, '2026-11-09', '2026-11-12', ReservationStatus.CANCELLED);
+
+      const res = await request(app).get('/api/reservations/occupied-today').set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.map((r: {id: number}) => r.id)).toEqual([checkedIn.id, pending.id]);
+      expect(res.body[0]).toMatchObject({status: ReservationStatus.CHECKED_IN, room: {number: 101, floor: 1, category: {name: 'Standard'}}});
+      expect(res.body[0].guest.user.username).toBe('guest1');
+      expect(res.body[0].guest.user.password).toBeUndefined();
+      expect(res.body[1].status).toBe(ReservationStatus.PENDING);
+    });
+
+    it('is staff only', async () => {
+      const res = await request(app).get('/api/reservations/occupied-today');
+
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('PUT /api/reservations/mine/:id', () => {
+    it('lets the guest move a pending reservation and re-quotes the total', async () => {
+      const reservation = await createPendingReservation(); // 2 noches, 100000
+      const guestToken = await login('guest1');
+
+      const res = await request(app)
+        .put(`/api/reservations/mine/${reservation.id}`)
+        .set('Authorization', `Bearer ${guestToken}`)
+        .send({startDate: '2026-12-01', endDate: '2026-12-04'});
+
+      expect(res.status).toBe(200);
+      await reservation.reload();
+      expect(reservation.startDate).toBe('2026-12-01');
+      expect(reservation.endDate).toBe('2026-12-04');
+      expect(reservation.totalAmount).toBe(150000); // 3 noches x 50000
+    });
+
+    it('refuses a reservation that is not pending', async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_IN});
+      const guestToken = await login('guest1');
+
+      const res = await request(app)
+        .put(`/api/reservations/mine/${reservation.id}`)
+        .set('Authorization', `Bearer ${guestToken}`)
+        .send({startDate: '2026-12-01', endDate: '2026-12-04'});
+
+      expect(res.status).toBe(400);
+      await reservation.reload();
+      expect(reservation.startDate).toBe('2026-11-01');
+    });
+
+    it("does not let a guest touch someone else's reservation", async () => {
+      const reservation = await createPendingReservation();
+      const other = await User.create({username: 'guest2', email: 'guest2@example.com', password: 'clave123', role: Role.GUEST});
+      const city = await City.findOne();
+      await Guest.create({phone: null, documentNumber: '30999888', cityId: city!.id, country: 'Argentina', userId: other.id});
+      const otherToken = await login('guest2');
+
+      const res = await request(app)
+        .put(`/api/reservations/mine/${reservation.id}`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({startDate: '2026-12-01', endDate: '2026-12-04'});
+
+      expect(res.status).toBe(404);
+    });
+
+    it('refuses dates that collide with another reservation of the room', async () => {
+      const reservation = await createPendingReservation();
+      await Reservation.create({
+        startDate: '2026-12-02',
+        endDate: '2026-12-05',
+        status: ReservationStatus.PENDING,
+        totalAmount: 1000,
+        guestId: reservation.guestId,
+        roomId: reservation.roomId
+      });
+      const guestToken = await login('guest1');
+
+      const res = await request(app)
+        .put(`/api/reservations/mine/${reservation.id}`)
+        .set('Authorization', `Bearer ${guestToken}`)
+        .send({startDate: '2026-12-01', endDate: '2026-12-04'});
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Habitación no disponible');
+    });
+  });
+
+  describe('GET /api/rooms with dates', () => {
+    it('still offers a room that is occupied today when it is free on the searched dates', async () => {
+      const reservation = await createPendingReservation(); // 2026-11-01 -> 2026-11-03
+      await Room.update({status: RoomStatus.OCCUPIED}, {where: {id: reservation.roomId}});
+
+      const res = await request(app).get('/api/rooms').query({startDate: '2026-12-10', endDate: '2026-12-12'});
+
+      expect(res.status).toBe(200);
+      expect(res.body.map((room: {id: number}) => room.id)).toEqual([reservation.roomId]);
+    });
+
+    it('leaves out rooms under maintenance and rooms booked on those dates', async () => {
+      const reservation = await createPendingReservation();
+      const category = await RoomCategory.findOne();
+      const maintenance = await Room.create({number: 102, floor: 1, status: RoomStatus.MAINTENANCE, categoryId: category!.id});
+
+      const res = await request(app).get('/api/rooms').query({startDate: '2026-11-02', endDate: '2026-11-04'});
+
+      const ids = res.body.map((room: {id: number}) => room.id);
+      expect(ids).not.toContain(reservation.roomId);
+      expect(ids).not.toContain(maintenance.id);
+    });
+  });
+
+  describe('DELETE /api/rooms/:id', () => {
+    const deleteRoom = (id: number) => request(app).delete(`/api/rooms/${id}`).set('Authorization', `Bearer ${adminToken}`);
+
+    it('refuses a room that is occupied and keeps it', async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_IN});
+      await Room.update({status: RoomStatus.OCCUPIED}, {where: {id: reservation.roomId}});
+
+      const res = await deleteRoom(reservation.roomId);
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toContain(`#${reservation.id}`);
+      expect(await Room.findByPk(reservation.roomId)).not.toBeNull();
+    });
+
+    it('refuses a room with a pending reservation', async () => {
+      const reservation = await createPendingReservation();
+
+      const res = await deleteRoom(reservation.roomId);
+
+      expect(res.status).toBe(409);
+      expect(await Room.findByPk(reservation.roomId)).not.toBeNull();
+    });
+
+    it('deletes a room with no active reservations', async () => {
+      const room = await createRoom();
+
+      const res = await deleteRoom(room.id);
+
+      expect(res.status).toBe(204);
+      expect(await Room.findByPk(room.id)).toBeNull();
+    });
+  });
+
   describe('PUT /api/reservations/:id status changes', () => {
     it('rejects skipping the life cycle (pending -> check-out) and leaves the reservation untouched', async () => {
       const reservation = await createPendingReservation();

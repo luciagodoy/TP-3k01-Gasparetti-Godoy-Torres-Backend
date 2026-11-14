@@ -1,7 +1,7 @@
 import {Request, Response} from 'express';
 import {Reservation} from '../entities';
 import {renderReceiptPdf} from '../services/receipt-pdf.service';
-import {GuestReservationInput, reservationService, ReservationUpdate, StaffReservationInput} from '../services/reservation.service';
+import {GuestReservationInput, GuestReservationUpdate, reservationService, ReservationUpdate, StaffReservationInput} from '../services/reservation.service';
 import {optionalNumber, parseId} from '../shared/http';
 
 interface ListReservationsQuery {
@@ -30,6 +30,11 @@ export const reservationController = {
     res.json(await reservationService.listForGuest(req.user!.id));
   },
 
+  async updateMine(req: Request<{id: string}, {}, GuestReservationUpdate>, res: Response): Promise<void> {
+    const reservation = await reservationService.updateForGuest(req.user!.id, parseId(req.params.id), req.body);
+    res.json({message: 'Reserva modificada correctamente', reservation});
+  },
+
   async cancelMine(req: Request<{id: string}>, res: Response): Promise<void> {
     const reservation = await reservationService.cancelForGuest(req.user!.id, parseId(req.params.id));
     res.json({message: 'Reserva cancelada correctamente', reservation});
@@ -53,6 +58,10 @@ export const reservationController = {
         endDate
       })
     );
+  },
+
+  async listOccupiedToday(_req: Request, res: Response): Promise<void> {
+    res.json(await reservationService.listOccupiedToday());
   },
 
   async getById(req: Request<{id: string}>, res: Response): Promise<void> {

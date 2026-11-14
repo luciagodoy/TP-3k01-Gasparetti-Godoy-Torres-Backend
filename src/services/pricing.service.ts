@@ -70,7 +70,15 @@ class PricingService {
   ) {}
 
 
-  async quote(startDate: string, endDate: string, categoryId?: number, transaction?: Transaction): Promise<CategoryQuote[]> {
+  // excludeReservationId deja afuera una reserva de la ocupación: al cambiar las fechas de una
+  // reserva existente, ella misma no tiene que encarecer su propia cotización.
+  async quote(
+    startDate: string,
+    endDate: string,
+    categoryId?: number,
+    transaction?: Transaction,
+    excludeReservationId?: number
+  ): Promise<CategoryQuote[]> {
     if (!startDate || !endDate) {
       throw new BadRequestError('Datos incompletos', 'startDate y endDate son obligatorios.');
     }
@@ -84,7 +92,9 @@ class PricingService {
     const ids = categories.map((category) => category.id);
     const rules = await this.rules.findActiveFor(ids, transaction);
     const roomCounts = await this.rooms.countByCategory(ids, transaction);
-    const reservations = await this.reservations.findActiveInRange(startDate, endDate, ids, transaction);
+    const reservations = (await this.reservations.findActiveInRange(startDate, endDate, ids, transaction)).filter(
+      (reservation) => reservation.id !== excludeReservationId
+    );
 
     const dates = Array.from({length: nightCount}, (_, i) => addDays(startDate, i));
     const leadDays = calculateNights(today(), startDate);
@@ -121,8 +131,14 @@ class PricingService {
     });
   }
 
-  async quoteCategory(categoryId: number, startDate: string, endDate: string, transaction?: Transaction): Promise<CategoryQuote> {
-    const [quote] = await this.quote(startDate, endDate, categoryId, transaction);
+  async quoteCategory(
+    categoryId: number,
+    startDate: string,
+    endDate: string,
+    transaction?: Transaction,
+    excludeReservationId?: number
+  ): Promise<CategoryQuote> {
+    const [quote] = await this.quote(startDate, endDate, categoryId, transaction, excludeReservationId);
     return quote;
   }
 

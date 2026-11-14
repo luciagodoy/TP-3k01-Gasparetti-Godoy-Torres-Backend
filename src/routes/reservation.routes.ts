@@ -7,11 +7,14 @@ const router = Router();
 // Autoservicio del huésped. Se declara antes de '/:id' para que "mine" no se lea como un id.
 router.post('/mine', auth.simple, reservationController.createMine);
 router.get('/mine', auth.simple, reservationController.listMine);
+router.put('/mine/:id', auth.simple, reservationController.updateMine);
 router.post('/:id/cancel', auth.simple, reservationController.cancelMine);
 
 // Staff.
 router.post('/', auth.staff, reservationController.create);
 router.get('/', auth.staff, reservationController.list);
+// Antes de '/:id' para que "occupied-today" no se lea como un id.
+router.get('/occupied-today', auth.staff, reservationController.listOccupiedToday);
 router.get('/:id', auth.staff, reservationController.getById);
 router.put('/:id', auth.staff, reservationController.update);
 router.delete('/:id', auth.staff, reservationController.remove);

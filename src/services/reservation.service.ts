@@ -40,7 +40,13 @@ export interface GuestReservationInput {
   expectedTotal?: number;
 }
 
-const sameAmount = (a: number, b: number): boolean => Math.round(a * 100) === Math.round(b * 100);
+export interface GuestReservationUpdate {
+  startDate: string;
+  endDate: string;
+  expectedTotal?: number;
+}
+
+const sameAmount =(a: number, b: number): boolean => Math.round(a * 100) === Math.round(b * 100);
 
 export interface ReservationUpdate {
   startDate?: string;
@@ -69,6 +75,11 @@ class ReservationService extends BaseService<Reservation> {
   async list(filters: ReservationSearch): Promise<Reservation[]> {
     await this.expireOverdue();
     return this.reservations.search(filters);
+  }
+
+  async listOccupiedToday(): Promise<Reservation[]> {
+    await this.expireOverdue();
+    return this.reservations.findOccupiedOn(today());
   }
 
   async getWithDetails(id: number): Promise<Reservation> {
@@ -271,6 +282,41 @@ class ReservationService extends BaseService<Reservation> {
     await this.expireOverdue();
     const guestId = await guestService.requireGuestIdOfUser(userId);
     return this.reservations.findByGuestWithDetails(guestId);
+  }
+
+  // El huésped puede mover las fechas de su reserva mientras esté pendiente. La habitación se
+  // mantiene y el total se vuelve a cotizar para las fechas nuevas.
+  updateForGuest(userId: number, id: number, input: GuestReservationUpdate): Promise<Reservation> {
+    return runInTransaction(async (transaction) => {
+      const guestId = await guestService.requireGuestIdOfUser(userId, transaction);
+      const reservation = await this.findForTransition(id, transaction);
+      if (reservation.guestId !== guestId) throw new NotFoundError(NOT_FOUND);
+      if (reservation.status !== ReservationStatus.PENDING) {
+        throw invalidTransition(`No se puede modificar una reserva en estado "${reservation.status}".`);
+      }
+
+      if (!input.startDate || !input.endDate) {
+        throw new BadRequestError('Datos incompletos', 'startDate y endDate son obligatorios.');
+      }
+      const nights = assertValidRange(input.startDate, input.endDate);
+
+      const room = await this.assertRoomIsFree(reservation.roomId, input.startDate, input.endDate, reservation.id, transaction);
+      const quote = await pricingService.quoteCategory(room.categoryId, input.startDate, input.endDate, transaction, reservation.id);
+      if (input.expectedTotal != null && !sameAmount(input.expectedTotal, quote.total)) {
+        throw new ConflictError(
+          'El precio cambió',
+          `El total para esas fechas ahora es $${quote.total.toFixed(2)}. Revisalo y confirmá de nuevo.`
+        );
+      }
+
+      // Los servicios se cobran por noche: si cambia la estadía, cambian sus totales.
+      await reservationAmenityService.repriceForStay(reservation.id, nights, transaction);
+      return this.reservations.update(
+        reservation,
+        {startDate: input.startDate, endDate: input.endDate, totalAmount: quote.total},
+        {transaction}
+      );
+    });
   }
 
   cancelForGuest(userId: number, id: number): Promise<Reservation> {

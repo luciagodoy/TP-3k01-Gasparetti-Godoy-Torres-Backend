@@ -39,6 +39,13 @@ const withAmenities = {
   include: [{model: AmenityQuota, as: 'quota', include: [{model: Amenity, as: 'amenity'}]}]
 };
 
+// Sólo lo necesario para mostrar quién es el huésped en un listado.
+const withGuestAccount = {
+  model: Guest,
+  as: 'guest',
+  include: [{model: User, as: 'user', attributes: ['id', 'username', 'email']}]
+};
+
 class ReservationRepository extends BaseRepository<Reservation> {
   constructor() {
     super(Reservation);
@@ -86,6 +93,15 @@ class ReservationRepository extends BaseRepository<Reservation> {
     });
   }
 
+  findActiveByRoom(roomId: number, transaction?: Transaction): Promise<Reservation[]> {
+    return this.findAll({
+      where: {roomId, status: [ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]},
+      attributes: ['id', 'status'],
+      order: [['id', 'ASC']],
+      transaction
+    });
+  }
+
   // La estadía que está actualmente en la habitación, si hay alguna. Hace falta porque con
   // recambio el mismo día la reserva siguiente puede intentar hacer check-in antes de que esta salga.
   findCheckedInForRoom(roomId: number, excludeId: number, transaction: Transaction): Promise<Reservation | null> {
@@ -122,7 +138,20 @@ class ReservationRepository extends BaseRepository<Reservation> {
       ...(status && {status: status as ReservationStatus}),
       ...(startDate && endDate && overlapping(startDate, endDate))
     };
-    return this.findAll({where, include: [{model: Room, as: 'room'}]});
+    return this.findAll({where, include: [{model: Room, as: 'room'}, withGuestAccount], order: [['startDate', 'DESC']]});
+  }
+
+  // Habitaciones con una estadía vigente en `date`: las que ya hicieron el check-in (siguen
+  // ocupadas hasta el check-out, aunque sea tardío) y las pendientes cuya estadía cubre ese día.
+  findOccupiedOn(date: string): Promise<Reservation[]> {
+    return this.findAll({
+      where: {
+        startDate: {[Op.lte]: date},
+        [Op.or]: [{status: ReservationStatus.CHECKED_IN}, {status: ReservationStatus.PENDING, endDate: {[Op.gt]: date}}]
+      },
+      include: [{model: Room, as: 'room', required: true, include: [{model: RoomCategory, as: 'category'}]}, withGuestAccount],
+      order: [[{model: Room, as: 'room'}, 'number', 'ASC']]
+    });
   }
 
   // La vista de detalle del staff: la reserva completa más los datos del huésped (la cuenta

@@ -16,7 +16,9 @@ class RoomRepository extends BaseRepository<Room> {
 
   search({categoryId, minCapacity, onlyAvailable, excludeIds}: RoomSearch): Promise<Room[]> {
     const roomWhere: WhereOptions<Room> = {};
-    if (onlyAvailable) roomWhere.status = RoomStatus.AVAILABLE;
+    // Con fechas lo que decide es si la habitación está libre en ese rango (excludeIds). El
+    // estado actual no sirve: una habitación ocupada hoy puede estar libre la semana próxima.
+    if (onlyAvailable) roomWhere.status = {[Op.ne]: RoomStatus.MAINTENANCE};
     if (excludeIds && excludeIds.length > 0) roomWhere.id = {[Op.notIn]: excludeIds};
 
     const categoryWhere: WhereOptions<RoomCategory> = {};

@@ -1,7 +1,8 @@
 import {Room, RoomStatus} from '../entities';
 import {reservationRepository} from '../repositories/reservation.repository';
 import {roomRepository} from '../repositories/room.repository';
-import {NotFoundError} from '../shared/errors';
+import {runInTransaction} from '../repositories/transaction';
+import {ConflictError, NotFoundError} from '../shared/errors';
 import {pickDefined} from '../shared/http';
 import {BaseService} from './base.service';
 
@@ -42,6 +43,27 @@ class RoomService extends BaseService<Room> {
     const room = await this.rooms.findByIdWithCategory(id);
     if (!room) throw new NotFoundError(this.notFoundMessage);
     return room;
+  }
+
+  // Con una estadía en curso o reservas pendientes no se borra: la habitación quedaría
+  // ocupada sin nadie que haga el check-out, o las reservas sin habitación.
+  async remove(id: number): Promise<void> {
+    await runInTransaction(async (transaction) => {
+      const room = await this.rooms.findByIdForUpdate(id, {transaction});
+      if (!room) throw new NotFoundError(this.notFoundMessage);
+
+      const active = await this.reservations.findActiveByRoom(room.id, transaction);
+      if (room.status === RoomStatus.OCCUPIED || active.length > 0) {
+        const ids = active.map((reservation) => `#${reservation.id}`).join(', ');
+        throw new ConflictError(
+          'La habitación está ocupada o tiene reservas activas',
+          ids
+            ? `Reservas pendientes o en curso: ${ids}. Cancelalas o hacé el check-out antes de eliminarla.`
+            : 'Está marcada como ocupada: hacé el check-out antes de eliminarla.'
+        );
+      }
+      await this.rooms.delete(room, {transaction});
+    });
   }
 
   create(input: RoomInput): Promise<Room> {
