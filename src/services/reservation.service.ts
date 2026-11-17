@@ -7,6 +7,7 @@ import {BadRequestError, ConflictError, NotFoundError} from '../shared/errors';
 import {assertValidRange, displayDate, hotelNow, today} from '../shared/dates';
 import {BaseService} from './base.service';
 import {guestService} from './guest.service';
+import {round2} from './pricing-calculator';
 import {pricingService} from './pricing.service';
 import {reservationAmenityService} from './reservation-amenity.service';
 
@@ -46,7 +47,13 @@ export interface GuestReservationUpdate {
   expectedTotal?: number;
 }
 
-const sameAmount =(a: number, b: number): boolean => Math.round(a * 100) === Math.round(b * 100);
+// Con tarifa dinámica el total puede cambiar entre la búsqueda y la confirmación: si no es el
+// que vio el huésped, no se reserva.
+const assertExpectedTotal = (expectedTotal: number | undefined, total: number): void => {
+  if (expectedTotal != null && round2(expectedTotal) !== round2(total)) {
+    throw new ConflictError('El precio cambió', `El total para esas fechas ahora es $${total.toFixed(2)}. Revisalo y confirmá de nuevo.`);
+  }
+};
 
 export interface ReservationUpdate {
   startDate?: string;
@@ -61,7 +68,6 @@ const NOT_FOUND = 'Reserva no encontrada';
 const invalidTransition = (detail: string) => new BadRequestError('Transición inválida', detail);
 class ReservationService extends BaseService<Reservation> {
   protected readonly notFoundMessage = NOT_FOUND;
-  protected readonly deleteBlockedMessage = 'Es posible que existan consumos asociados a esta reserva.';
 
   constructor(
     private readonly reservations = reservationRepository,
@@ -276,12 +282,7 @@ class ReservationService extends BaseService<Reservation> {
       // *distintas* de la misma categoría en el mismo instante pueden recibir ambos el escalón
       // inferior (cada cotización no ve la otra reserva).
       const quote = await pricingService.quoteCategory(room.categoryId, input.startDate, input.endDate, transaction);
-      if (input.expectedTotal != null && !sameAmount(input.expectedTotal, quote.total)) {
-        throw new ConflictError(
-          'El precio cambió',
-          `El total para esas fechas ahora es $${quote.total.toFixed(2)}. Revisalo y confirmá de nuevo.`
-        );
-      }
+      assertExpectedTotal(input.expectedTotal, quote.total);
 
       return this.reservations.create(
         {
@@ -321,12 +322,7 @@ class ReservationService extends BaseService<Reservation> {
 
       const room = await this.assertRoomIsFree(reservation.roomId, input.startDate, input.endDate, reservation.id, transaction);
       const quote = await pricingService.quoteCategory(room.categoryId, input.startDate, input.endDate, transaction, reservation.id);
-      if (input.expectedTotal != null && !sameAmount(input.expectedTotal, quote.total)) {
-        throw new ConflictError(
-          'El precio cambió',
-          `El total para esas fechas ahora es $${quote.total.toFixed(2)}. Revisalo y confirmá de nuevo.`
-        );
-      }
+      assertExpectedTotal(input.expectedTotal, quote.total);
 
       // Los servicios se cobran por noche: si cambia la estadía, cambian sus totales.
       await reservationAmenityService.repriceForStay(reservation.id, nights, transaction);
@@ -346,9 +342,7 @@ class ReservationService extends BaseService<Reservation> {
       if (reservation.status !== ReservationStatus.PENDING) {
         throw invalidTransition(`No se puede cancelar una reserva en estado "${reservation.status}".`);
       }
-      // Los servicios reservados vuelven al cupo: sin estadía no se usan.
-      await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
-      return this.reservations.update(reservation, {status: ReservationStatus.CANCELLED}, {transaction});
+      return this.cancel(reservation, transaction);
     });
   }
 
@@ -362,15 +356,18 @@ class ReservationService extends BaseService<Reservation> {
   async expireOverdue(): Promise<number[]> {
     return runInTransaction(async (transaction) => {
       const overdue = await this.reservations.findOverduePending(today(), transaction);
-      for (const reservation of overdue) {
-        await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
-        await this.reservations.update(reservation, {status: ReservationStatus.CANCELLED}, {transaction});
-      }
+      for (const reservation of overdue) await this.cancel(reservation, transaction);
       return overdue.map((reservation) => reservation.id);
     });
   }
 
   // --- Auxiliares ---
+
+  // Cancela la reserva. Los servicios reservados vuelven al cupo: sin estadía no se usan.
+  private async cancel(reservation: Reservation, transaction: Transaction): Promise<Reservation> {
+    await reservationAmenityService.removeAllOfReservation(reservation.id, true, transaction);
+    return this.reservations.update(reservation, {status: ReservationStatus.CANCELLED}, {transaction});
+  }
 
   private async assertRoomIsFree(
     roomId: number,

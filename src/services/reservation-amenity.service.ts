@@ -7,6 +7,7 @@ import {runInTransaction} from '../repositories/transaction';
 import {calculateNights} from '../shared/dates';
 import {BadRequestError, NotFoundError} from '../shared/errors';
 import {amenityPriceService} from './amenity-price.service';
+import {round2} from './pricing-calculator';
 import {guestService} from './guest.service';
 
 export interface StaffConsumptionInput {
@@ -45,7 +46,7 @@ const assertOpen = (reservation: Reservation): void => {
 // Los servicios se cobran por día de estadía: `quantity` son las unidades que se usan
 // cada día, y quedan tomadas del cupo durante toda la reserva.
 const nightsOf = (reservation: Reservation): number => calculateNights(reservation.startDate, reservation.endDate);
-const totalFor = (quantity: number, unitPrice: number, nights: number): number => Math.round(quantity * unitPrice * nights * 100) / 100;
+const totalFor = (quantity: number, unitPrice: number, nights: number): number => round2(quantity * unitPrice * nights);
 
 // Servicios consumidos durante una reserva, cobrados por noche. Toda escritura mantiene sincronizado el
 // contador `available` del cupo dentro de la misma transacción.
@@ -128,10 +129,7 @@ class ReservationAmenityService {
       const consumption = await this.consumptions.findById(id, {transaction});
       if (!consumption) throw new NotFoundError(NOT_FOUND);
 
-      const quota = await this.quotas.findByIdForUpdate(consumption.quotaId, {transaction});
-      if (quota) {
-        await this.quotas.update(quota, {available: quota.available + consumption.quantity}, {transaction});
-      }
+      await this.returnUnits(consumption, transaction);
       await this.consumptions.delete(consumption, {transaction});
     });
   }
@@ -143,10 +141,7 @@ class ReservationAmenityService {
   // canceladas antes de este cambio, cuyas unidades todavía estaban tomadas).
   async removeAllOfReservation(reservationId: number, returnUnits: boolean, transaction: Transaction): Promise<void> {
     for (const consumption of await this.consumptions.findByReservation(reservationId, transaction)) {
-      if (returnUnits) {
-        const quota = await this.quotas.findByIdForUpdate(consumption.quotaId, {transaction});
-        if (quota) await this.quotas.update(quota, {available: quota.available + consumption.quantity}, {transaction});
-      }
+      if (returnUnits) await this.returnUnits(consumption, transaction);
       await this.consumptions.delete(consumption, {transaction});
     }
   }
@@ -157,6 +152,12 @@ class ReservationAmenityService {
       const totalAmount = totalFor(consumption.quantity, Number(consumption.unitPrice), nights);
       await this.consumptions.update(consumption, {totalAmount}, {transaction});
     }
+  }
+
+  // Devuelve al cupo las unidades que tenía tomadas un consumo.
+  private async returnUnits(consumption: ReservationAmenity, transaction: Transaction): Promise<void> {
+    const quota = await this.quotas.findByIdForUpdate(consumption.quotaId, {transaction});
+    if (quota) await this.quotas.update(quota, {available: quota.available + consumption.quantity}, {transaction});
   }
 
   private async register(

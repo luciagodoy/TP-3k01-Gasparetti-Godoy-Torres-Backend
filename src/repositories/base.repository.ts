@@ -29,10 +29,6 @@ export class BaseRepository<M extends Model> implements Repository<M> {
     return this.model.findOne(options);
   }
 
-  count(options?: FindOptions<Attributes<M>>): Promise<number> {
-    return this.model.count(options);
-  }
-
   create(data: CreationAttributes<M>, options?: WriteOptions): Promise<M> {
     return this.model.create(data, options);
   }

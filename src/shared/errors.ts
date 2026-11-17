@@ -57,3 +57,7 @@ export const errorDetail = (error: unknown): string | undefined => {
   if (process.env.NODE_ENV === 'production') return undefined;
   return error instanceof Error ? error.message : String(error);
 };
+
+// "#3, #7": las reservas que el usuario tiene que cerrar o cancelar, para los mensajes de error.
+export const listReservationIds = (reservations: {id: number}[]): string =>
+  reservations.map((reservation) => `#${reservation.id}`).join(', ');

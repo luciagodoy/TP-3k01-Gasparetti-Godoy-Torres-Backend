@@ -26,7 +26,7 @@ export interface NightPrice<R extends PricingRuleData = PricingRuleData> {
 
 export const MIN_PRICE_RATIO = 0.5;
 
-const round2 = (value: number): number => Math.round(value * 100) / 100;
+export const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 // [from, to): `from` inclusive, `to` exclusivo, `to` null = sin límite superior.
 const inRange = (rule: PricingRuleData, measure: number): boolean => measure >= rule.from && (rule.to === null || measure < rule.to);

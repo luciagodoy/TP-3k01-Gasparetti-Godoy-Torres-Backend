@@ -18,7 +18,6 @@ const EDITABLE_FIELDS = ['username', 'email', 'password', 'role'] as const;
 
 class UserService extends BaseService<User> {
   protected readonly notFoundMessage = 'Usuario no encontrado';
-  protected readonly deleteBlockedMessage = 'El usuario tiene registros asociados.';
 
   list(): Promise<User[]> {
     return this.repository.findAll();
