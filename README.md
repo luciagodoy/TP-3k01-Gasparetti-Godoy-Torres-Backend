@@ -201,7 +201,8 @@ curso: la respuesta lista cuáles hay que cancelar o cerrar. Al borrar una reser
 cancelada, las unidades de los servicios que tenía vuelven al cupo; las de una estadía ya cerrada
 no, porque se consumieron. Cancelar una reserva (el staff o el huésped) también devuelve al cupo
 sus servicios en el momento. Una reserva cerrada o cancelada no admite cambios de fechas ni de
-habitación.
+habitación. Con el check-in hecho sólo se puede cambiar la fecha de salida: cambiar la habitación
+responde `409` con `code: "ROOM_CHANGE_DURING_STAY"` y la fecha de inicio, `code: "START_DATE_DURING_STAY"`.
 
 **Servicios cobrados por noche.** La cantidad de un consumo son las unidades que el huésped usa
 cada día, y su importe es `cantidad × precio unitario × noches de la estadía`. Las unidades se
