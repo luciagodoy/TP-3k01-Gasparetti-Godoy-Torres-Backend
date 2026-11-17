@@ -140,6 +140,25 @@ class ReservationService extends BaseService<Reservation> {
       if (isClosed && staysChange) {
         throw invalidTransition(`No se pueden cambiar las fechas ni la habitación de una reserva en estado "${reservation.status}".`);
       }
+      // Con el check-in hecho el huésped ya está en la habitación y la estadía ya empezó: sólo
+      // se puede mover la salida. Cambiar la habitación dejaría ocupada la anterior y libre
+      // (reservable) la que tiene al huésped adentro.
+      if (reservation.status === ReservationStatus.CHECKED_IN) {
+        if (Number(roomId) !== reservation.roomId) {
+          throw new ConflictError(
+            'La estadía está en curso',
+            'No se puede cambiar la habitación de una reserva con check-in.',
+            'ROOM_CHANGE_DURING_STAY'
+          );
+        }
+        if (startDate !== reservation.startDate) {
+          throw new ConflictError(
+            'La estadía está en curso',
+            'La estadía ya empezó: sólo se puede cambiar la fecha de salida.',
+            'START_DATE_DURING_STAY'
+          );
+        }
+      }
       if (input.startDate !== undefined || input.endDate !== undefined || input.roomId !== undefined) {
         await this.assertRoomIsFree(roomId, startDate, endDate, reservation.id, transaction);
       }
