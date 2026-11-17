@@ -335,6 +335,54 @@ describe('Reservations', () => {
     });
   });
 
+  describe('editing a stay in progress', () => {
+    const put = (id: number, body: object) =>
+      request(app).put(`/api/reservations/${id}`).set('Authorization', `Bearer ${adminToken}`).send(body);
+
+    // Reserva del 2026-11-01 al 2026-11-03 con check-in hecho: su habitación queda ocupada.
+    const checkedIn = async () => {
+      const reservation = await createPendingReservation();
+      await reservation.update({status: ReservationStatus.CHECKED_IN});
+      await Room.update({status: RoomStatus.OCCUPIED}, {where: {id: reservation.roomId}});
+      return reservation;
+    };
+
+    it('rejects moving it to another room and leaves both rooms as they were', async () => {
+      const reservation = await checkedIn();
+      const other = await Room.create({number: 102, floor: 1, status: RoomStatus.AVAILABLE, categoryId: (await Room.findByPk(reservation.roomId))!.categoryId});
+
+      const res = await put(reservation.id, {roomId: other.id});
+
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('ROOM_CHANGE_DURING_STAY');
+      await reservation.reload();
+      expect(reservation.roomId).not.toBe(other.id);
+      expect((await Room.findByPk(reservation.roomId))!.status).toBe(RoomStatus.OCCUPIED);
+      expect((await Room.findByPk(other.id))!.status).toBe(RoomStatus.AVAILABLE);
+    });
+
+    it('rejects changing the start date: the stay already began', async () => {
+      const reservation = await checkedIn();
+
+      const res = await put(reservation.id, {startDate: '2026-11-02'});
+
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('START_DATE_DURING_STAY');
+      await reservation.reload();
+      expect(reservation.startDate).toBe('2026-11-01');
+    });
+
+    it('still lets staff extend the departure, and accepts the same room sent again', async () => {
+      const reservation = await checkedIn();
+
+      const res = await put(reservation.id, {endDate: '2026-11-05', roomId: String(reservation.roomId), startDate: '2026-11-01'});
+
+      expect(res.status).toBe(200);
+      await reservation.reload();
+      expect(reservation.endDate).toBe('2026-11-05');
+    });
+  });
+
   describe('check-in / check-out flow', () => {
     useHotelClock();
 
