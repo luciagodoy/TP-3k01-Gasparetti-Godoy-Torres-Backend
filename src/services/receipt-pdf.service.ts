@@ -10,16 +10,16 @@ import {calculateNights} from '../shared/dates';
 const COLUMNS = {concept: 50, quantity: 280, unitPrice: 350, subtotal: 450};
 const LINE_END = 550;
 
-// Escribe el comprobante de pago de una reserva con check-out en `output` (una respuesta
-// HTTP, un archivo...).
-export function renderReceiptPdf(reservation: Reservation, output: NodeJS.WritableStream): void {
+// Arma el comprobante de pago de una reserva con check-out y lo devuelve terminado: el PDF
+// queda en el stream hasta que alguien lo lea. Se arma entero antes de escribir la respuesta,
+// así un error (p. ej. una fuente que falta) sale como un error JSON y no como un PDF roto.
+export function renderReceiptPdf(reservation: Reservation): PDFKit.PDFDocument {
   const room = reservation.room;
   const user = reservation.guest?.user;
   const consumptions = reservation.consumedAmenities ?? [];
   const nights = calculateNights(reservation.startDate, reservation.endDate);
 
   const doc = new PDFDocument({size: 'A4', margin: 50});
-  doc.pipe(output);
 
   doc.fontSize(18).text('Hotel DSW', {align: 'center'});
   doc.fontSize(12).text('Comprobante de Pago', {align: 'center'});
@@ -67,6 +67,7 @@ export function renderReceiptPdf(reservation: Reservation, output: NodeJS.Writab
   doc.fontSize(10).text('Gracias por su estadía.', {align: 'center'});
 
   doc.end();
+  return doc;
 }
 
 function writeRow(doc: PDFKit.PDFDocument, [concept, quantity, unitPrice, subtotal]: string[]): void {

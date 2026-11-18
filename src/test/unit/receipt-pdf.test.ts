@@ -1,18 +1,16 @@
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {PassThrough} from 'node:stream';
 import {describe, it, expect} from 'vitest';
 import {Reservation} from '../../entities';
 import {renderReceiptPdf} from '../../services/receipt-pdf.service';
 
 const render = (reservation: Partial<Reservation>): Promise<Buffer> =>
   new Promise((resolve, reject) => {
-    const output = new PassThrough();
+    const pdf = renderReceiptPdf(reservation as Reservation);
     const chunks: Buffer[] = [];
-    output.on('data', (chunk: Buffer) => chunks.push(chunk));
-    output.on('end', () => resolve(Buffer.concat(chunks)));
-    output.on('error', reject);
-    renderReceiptPdf(reservation as Reservation, output);
+    pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
+    pdf.on('end', () => resolve(Buffer.concat(chunks)));
+    pdf.on('error', reject);
   });
 
 describe('renderReceiptPdf', () => {
