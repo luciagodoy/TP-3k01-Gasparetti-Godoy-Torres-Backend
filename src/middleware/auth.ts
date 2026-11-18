@@ -14,7 +14,6 @@ declare global {
   namespace Express {
     interface Request {
       user?: User;
-      token?: string;
     }
   }
 }
@@ -27,13 +26,11 @@ declare global {
 const requireRole = (...allowedRoles: Role[]) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     let user: User | null;
-    let token: string;
     try {
       const authHeader = req.header('Authorization');
       if (!authHeader) throw new Error('missing Authorization header');
 
-      token = authHeader.replace('Bearer ', '');
-      const decoded = jwt.verify(token, getJwtSecret()) as DecodedToken;
+      const decoded = jwt.verify(authHeader.replace('Bearer ', ''), getJwtSecret()) as DecodedToken;
 
       user = await userRepository.findById(decoded.id);
       if (!user) throw new Error('user no longer exists');
@@ -47,7 +44,6 @@ const requireRole = (...allowedRoles: Role[]) => {
       return;
     }
 
-    req.token = token;
     req.user = user;
     next();
   };

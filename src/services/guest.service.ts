@@ -6,7 +6,7 @@ import {runInTransaction} from '../repositories/transaction';
 import {userRepository} from '../repositories/user.repository';
 import {cityRepository} from '../repositories/city.repository';
 import {normalizeEmail, trimmed, validateRegistration} from '../shared/account-rules';
-import {BadRequestError, ConflictError, FieldErrors, InvalidFieldsError, NotFoundError} from '../shared/errors';
+import {BadRequestError, ConflictError, FieldErrors, InvalidFieldsError, listReservationIds, NotFoundError} from '../shared/errors';
 import {pickDefined} from '../shared/http';
 import {BaseService} from './base.service';
 
@@ -32,7 +32,6 @@ const NO_PROFILE_MESSAGE = 'No existe un perfil de huésped asociado a esta cuen
 
 class GuestService extends BaseService<Guest> {
   protected readonly notFoundMessage = 'Huésped no encontrado';
-  protected readonly deleteBlockedMessage = 'Es posible que existan reservas asociadas a este huésped.';
 
   constructor(
     private readonly guests = guestRepository,
@@ -127,7 +126,7 @@ class GuestService extends BaseService<Guest> {
   async assertNoActiveReservations(guestId: number, transaction: Transaction): Promise<void> {
     const active = await reservationRepository.findActiveByGuest(guestId, transaction);
     if (active.length === 0) return;
-    const ids = active.map((reservation) => `#${reservation.id}`).join(', ');
+    const ids = listReservationIds(active);
     throw new ConflictError(
       'El huésped tiene reservas activas',
       `Reservas pendientes o en curso: ${ids}. Cancelalas o hacé el check-out antes de eliminarlo.`

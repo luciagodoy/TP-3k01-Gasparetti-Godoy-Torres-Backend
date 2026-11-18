@@ -2,7 +2,7 @@ import {Room, RoomStatus} from '../entities';
 import {reservationRepository} from '../repositories/reservation.repository';
 import {roomRepository} from '../repositories/room.repository';
 import {runInTransaction} from '../repositories/transaction';
-import {ConflictError, NotFoundError} from '../shared/errors';
+import {ConflictError, listReservationIds, NotFoundError} from '../shared/errors';
 import {pickDefined} from '../shared/http';
 import {BaseService} from './base.service';
 
@@ -24,7 +24,6 @@ const EDITABLE_FIELDS = ['number', 'floor', 'status', 'categoryId'] as const;
 
 class RoomService extends BaseService<Room> {
   protected readonly notFoundMessage = 'Habitación no encontrada';
-  protected readonly deleteBlockedMessage = 'Es posible que existan reservas asociadas a esta habitación.';
 
   constructor(
     private readonly rooms = roomRepository,
@@ -54,7 +53,7 @@ class RoomService extends BaseService<Room> {
 
       const active = await this.reservations.findActiveByRoom(room.id, transaction);
       if (room.status === RoomStatus.OCCUPIED || active.length > 0) {
-        const ids = active.map((reservation) => `#${reservation.id}`).join(', ');
+        const ids = listReservationIds(active);
         throw new ConflictError(
           'La habitación está ocupada o tiene reservas activas',
           ids

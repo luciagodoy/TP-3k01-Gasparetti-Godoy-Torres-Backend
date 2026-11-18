@@ -85,17 +85,16 @@ class ReservationRepository extends BaseRepository<Reservation> {
 
   // Las reservas que todavía importan para la operación del hotel: pendientes o en curso.
   findActiveByGuest(guestId: number, transaction?: Transaction): Promise<Reservation[]> {
-    return this.findAll({
-      where: {guestId, status: [ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]},
-      attributes: ['id', 'status'],
-      order: [['id', 'ASC']],
-      transaction
-    });
+    return this.findActive({guestId}, transaction);
   }
 
   findActiveByRoom(roomId: number, transaction?: Transaction): Promise<Reservation[]> {
+    return this.findActive({roomId}, transaction);
+  }
+
+  private findActive(where: WhereOptions<Reservation>, transaction?: Transaction): Promise<Reservation[]> {
     return this.findAll({
-      where: {roomId, status: [ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]},
+      where: {...where, status: [ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]},
       attributes: ['id', 'status'],
       order: [['id', 'ASC']],
       transaction

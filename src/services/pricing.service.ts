@@ -6,6 +6,7 @@ import {roomCategoryRepository} from '../repositories/room-category.repository';
 import {roomRepository} from '../repositories/room.repository';
 import {addDays, assertValidRange, calculateNights, today} from '../shared/dates';
 import {BadRequestError, NotFoundError} from '../shared/errors';
+import {round2} from '../shared/money';
 import {priceForNight} from './pricing-calculator';
 
 export interface AppliedAdjustment {
@@ -35,8 +36,6 @@ export interface CategoryQuote {
 }
 
 export const MAX_QUOTE_NIGHTS = 365;
-
-const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 const toAdjustment = (rule: PricingRule | null): AppliedAdjustment | null =>
   rule && {ruleId: rule.id, adjustmentType: rule.adjustmentType, value: rule.value};
