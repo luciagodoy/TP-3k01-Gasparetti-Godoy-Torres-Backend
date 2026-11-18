@@ -5,9 +5,9 @@ import {roomRepository} from '../repositories/room.repository';
 import {runInTransaction} from '../repositories/transaction';
 import {BadRequestError, ConflictError, NotFoundError} from '../shared/errors';
 import {assertValidRange, displayDate, hotelNow, today} from '../shared/dates';
+import {round2} from '../shared/money';
 import {BaseService} from './base.service';
 import {guestService} from './guest.service';
-import {round2} from './pricing-calculator';
 import {pricingService} from './pricing.service';
 import {reservationAmenityService} from './reservation-amenity.service';
 

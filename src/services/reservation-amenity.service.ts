@@ -6,8 +6,8 @@ import {reservationRepository} from '../repositories/reservation.repository';
 import {runInTransaction} from '../repositories/transaction';
 import {calculateNights} from '../shared/dates';
 import {BadRequestError, NotFoundError} from '../shared/errors';
+import {round2} from '../shared/money';
 import {amenityPriceService} from './amenity-price.service';
-import {round2} from './pricing-calculator';
 import {guestService} from './guest.service';
 
 export interface StaffConsumptionInput {

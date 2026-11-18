@@ -1,4 +1,5 @@
 import {AdjustmentType, PricingRuleType} from '../entities/pricing-rule.entity';
+import {round2} from '../shared/money';
 
 // Aritmética de precios pura. El servicio
 // de precios reúne los datos (reglas, ocupación, antelación) y este módulo sólo
@@ -25,8 +26,6 @@ export interface NightPrice<R extends PricingRuleData = PricingRuleData> {
 }
 
 export const MIN_PRICE_RATIO = 0.5;
-
-export const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 // [from, to): `from` inclusive, `to` exclusivo, `to` null = sin límite superior.
 const inRange = (rule: PricingRuleData, measure: number): boolean => measure >= rule.from && (rule.to === null || measure < rule.to);

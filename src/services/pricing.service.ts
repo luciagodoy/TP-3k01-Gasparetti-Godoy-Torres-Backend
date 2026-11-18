@@ -6,7 +6,8 @@ import {roomCategoryRepository} from '../repositories/room-category.repository';
 import {roomRepository} from '../repositories/room.repository';
 import {addDays, assertValidRange, calculateNights, today} from '../shared/dates';
 import {BadRequestError, NotFoundError} from '../shared/errors';
-import {priceForNight, round2} from './pricing-calculator';
+import {round2} from '../shared/money';
+import {priceForNight} from './pricing-calculator';
 
 export interface AppliedAdjustment {
   ruleId: number;
