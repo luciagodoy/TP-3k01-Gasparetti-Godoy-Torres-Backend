@@ -13,9 +13,10 @@ interface ListReservationsQuery {
 }
 
 const sendReceipt = (res: Response, reservation: Reservation): void => {
+  const pdf = renderReceiptPdf(reservation);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="comprobante-reserva-${reservation.id}.pdf"`);
-  renderReceiptPdf(reservation, res);
+  pdf.pipe(res);
 };
 
 export const reservationController = {
