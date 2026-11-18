@@ -1,4 +1,9 @@
 import PDFDocument from 'pdfkit';
+// pdfkit 0.20 carga sus fuentes estándar con un require dinámico que el file tracing de
+// Vercel no sigue, así que no entraban en el bundle y el comprobante fallaba con
+// MODULE_NOT_FOUND. Este import estático las incluye. El comprobante usa sólo Helvetica (la
+// fuente por defecto); si se agrega otra con doc.font(), hay que importarla acá también.
+import 'pdfkit/standard-fonts/Helvetica';
 import {Reservation} from '../entities';
 import {calculateNights} from '../shared/dates';
 
